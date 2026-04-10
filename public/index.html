@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PS MD | WhatsApp Bot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --red: #ff3d3d;
+      --gold: #ffd700;
+      --black: #000;
+      --dark-red: #cc0000;
+    }
+    body {
+      min-height: 100vh;
+      font-family: 'Roboto', sans-serif;
+      color: #fff;
+      background: radial-gradient(circle at top, rgba(255, 61, 61, 0.12), transparent 25%),
+                  linear-gradient(135deg, #090909 0%, #120000 45%, #0b0b0b 100%);
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 61, 61, 0.03) 0px,
+        rgba(255, 61, 61, 0.03) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+      pointer-events: none;
+      animation: flicker 0.16s infinite;
+      z-index: 0;
+    }
+    @keyframes flicker {
+      0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+      20%, 24%, 55% { opacity: 0.96; }
+    }
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 24px 56px;
+    }
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+    .brand {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px;
+      letter-spacing: 4px;
+      color: #ff3d3d;
+      text-transform: uppercase;
+      text-shadow: 0 0 18px rgba(255, 61, 61, 0.8);
+    }
+    .nav-menu {
+      display: flex;
+      gap: 18px;
+    }
+    .nav-link {
+      color: #fff;
+      text-decoration: none;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: color 0.2s ease;
+    }
+    .nav-link:hover { color: #ff3d3d; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 40px;
+      align-items: center;
+      margin-bottom: 60px;
+    }
+    .hero-copy {
+      max-width: 620px;
+    }
+    .hero-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(48px, 7vw, 84px);
+      line-height: 0.95;
+      letter-spacing: 4px;
+      margin-bottom: 18px;
+      text-transform: uppercase;
+      color: #ff3d3d;
+      text-shadow: 0 0 22px rgba(255, 61, 61, 0.7);
+    }
+    .hero-text {
+      color: #ddd;
+      font-size: 16px;
+      line-height: 1.9;
+      margin-bottom: 32px;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 16px 26px;
+      border: 2px solid #ff3d3d;
+      background: linear-gradient(135deg, rgba(255,61,61,0.95) 0%, rgba(204,0,0,0.95) 100%);
+      color: #fff;
+      text-decoration: none;
+      font-family: 'Bebas Neue', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 0 24px rgba(255, 61, 61, 0.24);
+    }
+    .button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 0 40px rgba(255, 61, 61, 0.4);
+    }
+    .hero-card {
+      background: rgba(0, 0, 0, 0.9);
+      border: 1px solid rgba(255, 61, 61, 0.2);
+      padding: 32px;
+      box-shadow: inset 0 0 30px rgba(255, 61, 61, 0.08);
+      min-height: 420px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 24px;
+    }
+    .hero-card h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      color: #fff;
+      margin-bottom: 14px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .hero-card p {
+      color: #ccc;
+      line-height: 1.8;
+      font-size: 14px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 10px;
+    }
+    .stat {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 61, 61, 0.12);
+      padding: 18px;
+    }
+    .stat-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 14px;
+      text-transform: uppercase;
+      color: #ff3d3d;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 30px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .section {
+      margin-bottom: 56px;
+    }
+    .section-title {
+      display: inline-flex;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      color: #ff3d3d;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 24px;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: rgba(0, 0, 0, 0.88);
+      border: 1px solid rgba(255, 61, 61, 0.13);
+      padding: 28px;
+      min-height: 210px;
+      box-shadow: inset 0 0 18px rgba(255, 61, 61, 0.08);
+    }
+    .feature-icon {
+      font-size: 28px;
+      margin-bottom: 16px;
+    }
+    .feature-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      color: #fff;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .feature-desc {
+      color: #ccc;
+      line-height: 1.8;
+      font-size: 14px;
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: #999;
+      font-size: 13px;
+      border-top: 1px solid rgba(255, 61, 61, 0.18);
+      padding-top: 24px;
+    }
+    .footer a {
+      color: #ff3d3d;
+      text-decoration: none;
+    }
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-card { min-height: auto; }
+      .features { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 720px) {
+      .nav { flex-direction: column; align-items: flex-start; gap: 16px; }
+      .features { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="nav">
+      <div class="brand">PS MD</div>
+      <div class="nav-menu">
+        <a class="nav-link" href="/">Home</a>
+        <a class="nav-link" href="/pairing">Pairing</a>
+        <a class="nav-link" href="/settings">Settings</a>
+        <a class="nav-link" href="/about">About</a>
+        <a class="nav-link" href="/shop">Shop</a>
+        <a class="nav-link" href="/contact">Contact</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="hero-title">Link WhatsApp Like a Pro</div>
+        <div style="font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--gold); letter-spacing: 2px; margin-bottom: 10px;">PS MD Bot</div>
+        <p class="hero-text">Transform your WhatsApp pairing experience with an immersive PS MD style interface. Scan the QR, generate a pair code, and connect instantly from any device.</p>
+        <div class="hero-actions">
+          <a class="button" href="/pairing">🔗 Open Pairing</a>
+          <a class="button" href="/settings">⚙️ Open Settings</a>
+        </div>
+      </div>
+      <div class="hero-card">
+        <h2>Operation: Connect</h2>
+        <p>Use the pairing page to generate QR codes or manual pair codes. Share the code with teammates and get every device linked securely.</p>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-title">Mode</div>
+            <div class="stat-value">QR + Code</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Secure</div>
+            <div class="stat-value">AES</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title">WHAT YOU GET</div>
+      <div class="features">
+        <div class="feature-card">
+          <div class="feature-icon">📱</div>
+          <div class="feature-title">Fast Pairing</div>
+          <div class="feature-desc">Scan the QR code or enter a generated code to link WhatsApp devices immediately.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔐</div>
+          <div class="feature-title">Secure Access</div>
+          <div class="feature-desc">Only authorized phone numbers can request pair codes, keeping access controlled.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚙️</div>
+          <div class="feature-title">Control Center</div>
+          <div class="feature-desc">Manage bot settings, update command prefix, and set a secure admin password.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title">HOW IT WORKS</div>
+      <div class="features">
+        <div class="feature-card">
+          <div class="feature-icon">1</div>
+          <div class="feature-title">Open Pairing</div>
+          <div class="feature-desc">Go to the pairing page to access both QR scanning and manual pair code generation.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">2</div>
+          <div class="feature-title">Generate Code</div>
+          <div class="feature-desc">Enter a phone number and produce a unique pair code for WhatsApp verification.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">3</div>
+          <div class="feature-title">Connect & Use</div>
+          <div class="feature-desc">Scan the QR or enter the code on your phone and let the bot connect instantly.</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>PS MD • PS MD Inspired</span>
+      <span>Powered by WhatsApp Multi-Device Pairing</span>
+    </footer>
+  </div>
+</body>
+</html>

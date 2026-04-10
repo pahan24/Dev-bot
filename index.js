@@ -1,642 +1,447 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, jidNormalizedUser, getContentType, fetchLatestBaileysVersion, Browsers, downloadContentFromMessage } = require('@whiskeysockets/baileys');
-const l = console.log;
 const fs = require('fs');
+const path = require('path');
+const express = require('express');
+const qrcode = require('qrcode');
 const P = require('pino');
 const config = require('./setting');
-const util = require('util');
-const axios = require('axios');
-const { File } = require('megajs');
-const ownerNumber = ["13135550002@s.whatsapp.net"];
-const path = require('path');
-const AdmZip = require('adm-zip');
-const PLUGINS_DIR = './plugins';
-const LIB_DIR = './lib';
-const ZIP_DIR = './';
+const {
+  default: makeWASocket,
+  useMultiFileAuthState,
+  DisconnectReason,
+  getContentType,
+  fetchLatestBaileysVersion
+} = require('@whiskeysockets/baileys');
 
-async function downloadAndExtractZip() {
-  try {
-    let response = await axios.get('https://dew-md-data.pages.dev/DATA-BASE/Data-File.json');
-    const zipUrl = response.data.url;
-
-    if (!fs.existsSync(PLUGINS_DIR)) fs.mkdirSync(PLUGINS_DIR, { recursive: true });
-    if (!fs.existsSync(LIB_DIR)) fs.mkdirSync(LIB_DIR, { recursive: true });
-
-    console.log('DEW-MD ♻ Installing...');
-
-    const fileFromMega = File.fromURL(zipUrl);
-    const downloadedBuffer = await fileFromMega.downloadBuffer();
-    const tempZipPath = path.join(__dirname, 'temp.zip');
-
-    fs.writeFileSync(tempZipPath, downloadedBuffer);
-    console.log('DEW-MD ♻ ZIP file downloaded successfully ✅');
-
-    const zip = new AdmZip(tempZipPath);
-    zip.getEntries().forEach(entry => {
-      if (!entry.isDirectory) {
-        if (entry.entryName.includes('/plugins/') || entry.entryName.startsWith('plugins/')) {
-          const relativePath = entry.entryName.substring(entry.entryName.indexOf('plugins/') + 'plugins/'.length);
-          const destPath = path.join(PLUGINS_DIR, path.dirname(relativePath));
-          fs.mkdirSync(destPath, { recursive: true });
-          zip.extractEntryTo(entry, destPath, false, true);
-        } else {
-          if (entry.entryName.includes('/lib/') || entry.entryName.startsWith('lib/')) {
-            const relativePath = entry.entryName.substring(entry.entryName.indexOf('lib/') + 'lib/'.length);
-            const destPath = path.join(LIB_DIR, path.dirname(relativePath));
-            fs.mkdirSync(destPath, { recursive: true });
-            zip.extractEntryTo(entry, destPath, false, true);
-          }
-        }
-      }
-    });
-
-    console.log('DEW-MD ♻ Plugins extracted successfully ✅');
-    fs.unlinkSync(tempZipPath);
-  } catch (error) {
-    console.error('Error:', error.message);
-  }
-}
-
-const messageStore = new Map();
-const AUTH_DIR = path.join(__dirname, 'auth_info_baileys');
-const CREDS = path.join(AUTH_DIR, 'creds.json');
-
-if (!fs.existsSync(CREDS)) {
-  if (!config.SESSION_ID) {
-    console.log('❌ SESSION_ID missing');
-    process.exit(1);
-  }
-
-  let session = config.SESSION_ID.trim();
-  if (!session.startsWith('DEW-MD~')) {
-    console.log('❌ Invalid DEW-MD session format');
-    process.exit(1);
-  }
-
-  const decoded = Buffer.from(session.substring(7), 'base64').toString('utf8');
-  JSON.parse(decoded);
-  fs.mkdirSync(AUTH_DIR, { recursive: true });
-  fs.writeFileSync(CREDS, decoded, { encoding: 'utf8' });
-  console.log('♻️ DEW-MD session restored successfully');
-}
-
-const express = require('express');
 const app = express();
-const port = process.env.PORT || 9090;
+const port = Number(process.env.PORT || 9090);
+const authFolder = path.join(__dirname, 'auth_info_baileys');
+let sock;
+const pairingState = {
+  qrCode: null,
+  pairCode: null,
+  botNumber: null,
+  sessionPassword: null,
+  isConnected: false,
+  connectionTime: null,
+  error: null,
+  lastUpdate: null
+};
 
-async function connectToWA() {
-  await downloadAndExtractZip();
+const settingsFile = path.join(__dirname, 'bot-settings.json');
+const defaultSettings = {
+  adminPassword: '6K92OG23',
+  prefix: config.PREFIX || '.',
+  welcomeText: '🎭 *සාදරයෙන් පිළිගනිමු! PS MD බොට් සම්බන්ධ වී ඇත!* 🎭\n\n*බොට් සාර්ථකව සම්බන්ධ වී ඇත. ඔබට සුබ පැතුම්!*\n\n*භාවිතා කිරීමට .menu ටයිප් කරන්න.*\n\n*අපගේ PS MD තේමය සමඟ භාවිතා කරන්න!*',
+  currentSessionPassword: null
+};
 
-  const prefix = '' + config.PREFIX;
-  console.log('DEW-MD ♻ Connecting');
-
-  const { state, saveCreds } = await useMultiFileAuthState(__dirname + '/auth_info_baileys/');
-  const { getBuffer, getGroupAdmins, getRandom, h2k, isUrl, Json, runtime, sleep, fetchJson } = require('./lib/functions');
-  const { sms } = require('./lib/msg');
-  const botFunctions = require('./lib/bot');
-  const { sendTranslations } = require('./lib/status');
-
-  var { version } = await fetchLatestBaileysVersion();
-
-  const sock = makeWASocket({
-    logger: P({ level: 'silent' }),
-    printQRInTerminal: false,
-    browser: ['Ubuntu', 'Chrome', '20.0.04'],
-    syncFullHistory: true,
-    auth: state,
-    version: version
-  });
-
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update;
-    if (connection === 'close') {
-      const statusCode = lastDisconnect.error?.output?.statusCode;
-      if (statusCode === DisconnectReason.loggedOut) {
-        console.log('Device Logged Out, please delete `auth_info_baileys` and rescan.');
-        process.exit();
-      } else {
-        if (statusCode === DisconnectReason.connectionReplaced) {
-          console.log('Connection replaced. Another session is active. Please stop other sessions and restart.');
-          process.exit();
-        } else {
-          if (lastDisconnect.error?.message?.includes('Bad MAC')) {
-            console.log('Bad MAC error detected. Deleting session and restarting...');
-            fs.rmSync(__dirname + '/auth_info_baileys', { recursive: true, force: true });
-            connectToWA();
-          } else {
-            console.log('Connection closed due to ', lastDisconnect.error, ', reconnecting...');
-            connectToWA();
-          }
-        }
-      }
-    } else {
-      if (connection === 'open') {
-        console.log('DEW-MD ♻ Bot connected to whatsapp ✅');
-
-        const pluginsDir = require('path');
-        fs.readdirSync('./plugins/').forEach(file => {
-          pluginsDir.join('./plugins/', file).endsWith('.js') && require('./plugins/' + file);
-        });
-
-        console.log('DEW-MD ♻ Plugins installed successful ✅');
-        console.log('DEW-MD ♻ Bot connected successfully');
-
-        const welcomeMsg = '*╭──────────────●●►*\n> *DEW-MD CONNECTED SUCCESSFULLY*\n\n> *Type .menu to view commands*  \n\n*╭⊱✫ DEW MD ✫⊮╮*\n*│✫📂 Bot Name: ' + botFunctions.REPO_NAME + '*\n*│✫♻️ Prefix: ' + prefix + '*\n*╰──────────────●●►\n\n> Enjoy Using Dew MD';
-
-        if (config.SEND_WELCOME === 'true') {
-          sock.sendMessage(ownerNumber + '@s.whatsapp.net', { image: { url: botFunctions.ALIVE_IMG }, caption: welcomeMsg });
-          sock.sendMessage(sock.user.id, { image: { url: botFunctions.ALIVE_IMG }, caption: welcomeMsg });
-        }
-      }
+function loadSettings() {
+  try {
+    if (!fs.existsSync(settingsFile)) {
+      fs.writeFileSync(settingsFile, JSON.stringify(defaultSettings, null, 2), 'utf8');
+      return { ...defaultSettings };
     }
-  });
-
-  const statusReplyMsg = '⚠️ *ANTI-CALL IS ACTIVE* ⚠️\n\nDear User,\n\nYou have attempted to call the Number. To ensure uninterrupted service, please refrain from calling.\n\nThank you for your understanding.\n\n' + botFunctions.COPYRIGHT;
-
-  sock.ev.on('call', async (calls) => {
-    if (config.ANTI_CALL === 'true') {
-      for (const call of calls) {
-        if (call.status == 'offer') {
-          if (call.isGroup == false) {
-            await sock.sendMessage(call.from, { image: { url: botFunctions.ALIVE_IMG }, caption: statusReplyMsg, mentions: [call.from] });
-            await sock.rejectCall(call.id, call.from);
-          } else {
-            await sock.sendMessage(call.id, call.from);
-          }
-        }
-      }
-    }
-  });
-
-  const emojiList = [
-    '😊', '👍', '😂', '💯', '🔥', '🙏', '🎉', '👏', '😎', '🤖', '👫', '👭', '👬', '👮', '🕴️', '💼', '📊', '📈', '📉', '📊', '📝', '📚', '📰', '📱', '💻', '📻', '📺', '🎬', '📽️', '📸', '📷', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '🤾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🏵', '🏰', '🏠', '🏡', '🏢', '🏣', '🏥', '🏦', '🏧', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏮', '🏯', '🚣', '🛥', '🚂', '🚁', '🚀', '🛸', '🛹', '🚴', '🚲', '🛺', '🚮', '🚯', '🚱', '🚫', '🚽', '🕳️', '💣', '🔫', '🕷️', '🕸️', '💀', '👻', '🕺', '💃', '🕴️', '👶', '👵', '👴', '👱', '👨', '👩', '👧', '👦', '👪', '👫', '👭', '👬', '👮', '🕴️', '💼', '📊', '📈', '📉', '📊', '📝', '📚', '📰', '📱', '💻', '📻', '📺', '🎬', '📽️', '📸', '📷', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '𤾾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🏵', '🏰', '🏠', '🏡', '🏢', '🏠', '🏡', '🏢', '🏣', '🏥', '🏦', '🏧', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏮', '🏯', '🚣', '🛥', '🚂', '🚁', '🚀', '🛸', '🛹', '🚴', '🚲', '🛺', '🚮', '🚯', '🚱', '🚫', '🚽', '️', '💣', '🔫', '🕷️', '🕸️', '💀', '👻', '🕺', '💃', '🕴️', '👶', '👵', '👴', '👱', '👨', '👩', '👧', '👦', '👪', '👫', '👭', '👬', '👮', '🕴️', '💼', '📊', '📈', '📉', '📊', '📝', '📚', '📰', '📱', '💻', '📻', '📺', '🎬', '📽️', '📸', '📷', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '𤾾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🏵', '🏰', '🏠', '🏡', '🏢', '🏣', '🏥', '🏦', '🏧', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏮', '🏯', '🚣', '🛥', '🚂', '🚁', '🚀', '🛸', '🛹', '🚴', '🚲', '🛺', '🚮', '🚯', '🚱', '🚫', '🚽', '️', '💣', '🔫', '🕷️', '🕸️', '💀', '👻', '🕺', '💃', '🕴️', '👶', '👵', '👴', '👱', '👨', '👩', '👧', '👦', '👪', '🙂', '😑', '🤣', '😍', '😘', '😗', '😙', '😚', '😛', '😝', '😞', '😟', '😠', '😡', '😢', '😭', '😓', '😳', '😴', '😌', '😆', '😂', '🤔', '😒', '😓', '😶', '🙄', '🐶', '🐱', '🐔', '🐷', '🐴', '🐲', '🐸', '🐳', '🐋', '🐒', '🐑', '🐕', '🐩', '🍔', '🍕', '🥤', '🍣', '🍲', '🍴', '🍽', '🍹', '🍸', '🎂', '📱', '📺', '📻', '🎤', '📚', '💻', '📸', '📷', '❤️', '💔', '❣️', '☀️', '🌙', '🌃', '🏠', '🚪', '🗯️', '🇬🇧', '🇨🇦', '🇦🇺', '🇯🇵', '🇫🇷', '🇪🇸', '👍', '👎', '👏', '👫', '👭', '👬', '👮', '🤝', '🙏', '👑', '🌻', '🌺', '🌸', '🌹', '🌴', '🏞️', '🌊', '🚗', '🚌', '🛫️', '🛬️', '🚣', '🛥', '🚂', '🚁', '🚀', '🏃‍♂️', '🏋️‍♀️', '🏊‍♂️', '🏊‍♀️', '🎾', '🏀', '🏈', '🎯', '🏆', '⬆️', '⬇️', '⇒', '⇐', '↩️', '↪️', 'ℹ️', '‼️', '⁉️', '‽️', '©️', '®️', '™️', '🔴', '🔵', '🟢', '🔹', '🔺', '💯', '👑', '🤣', '❤️‍🩹', '🤷‍♀️', '🙅‍♂️', '🙅‍♀️', '🙆‍♂️', '🙆‍♀️', '🤦‍♂️', '🤦‍♀️', '🏻', '💆‍♂️', '💆‍♀️', '💇‍♂️', '💇‍♀️', '🚫', '🚽', '️', '💣', '🔫', '🕷️', '🕸️', '💀', '👻', '🕺', '💃', '🕴️', '👶', '👵', '👴', '👱', '👨', '👩', '👧', '👦', '👪', '👫', '👭', '👬', '👮', '🕴️', '💼', '📊', '📈', '📉', '📊', '📝', '📚', '📰', '📱', '💻', '📻', '📺', '🎬', '📽️', '📸', '📷', '🕯️', '💡', '🔦', ' ', '🏯', '🏰', '🏠', '🏡', '🏢', '🏣', '🏥', '🏦', '🏧', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏮', '🏯', '🚣', '🛥', '🚂', '🚁', '🚀', '🛸', '🛹', '🚴', '🚲', '🛺', '🚮', '🚯', '🚱', '🚫', '🚽', '️', '💣', '🔫', '🕷️', '🕸️', '💀', '👻', '🕺', '💃', '🕴️', '👶', '👵', '👴', '👱', '👨', '👩', '👧', '👦', '👪', '👫', '👭', '👬', '👮', '🕴️', '💼', '📊', '📈', '📉', '📊', '📝', '📚', '📰', '📱', '💻', '📻', '📺', '🎬', '📽️', '📸', '📷', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '𤾾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🌳', '🌲', '🌾', '🌿', '🍃', '🍂', '🍃', '🌻', '💐', '🌹', '🌺', '🌸', '🌴', '🏵', '🎀', '🏆', '🏈', '🏉', '🎯', '🏀', '🏊', '🏋', '🏌', '🎲', '📚', '📖', '📜', '📝', '💭', '💬', '🗣', '💫', '🌟', '🌠', '🎉', '🎊', '👏', '💥', '🔥', '💥', '🌪', '💨', '🌫', '🌬', '🌩', '🌨', '🌧', '🌦', '🌥', '🌡', '🌪', '🌫', '🌬', '🌩', '🌨', '🌧', '🌦', '🌥', '🌡', '🌪', '🌫', '🌬', '🌩', '🌨', '🌧', '🌦', '🌥', '🌡', '🌱', '🌿', '🍃', '🍂', '🌻', '💐', '🌹', '🌺', '🌸', '🌴', '🏵', '🎀', '🏆', '🏈', '🏉', '🎯', '🏀', '🏊', '🏋', '🏌', '🎲', '📚', '📖', '📜', '📝', '💭', '💬', '🗣', '💫', '🌟', '🌠', '🎉', '🎊', '👏', '💥', '🔥', '💥', '🌪', '💨', '🌫', '🌬', '🌩', '🌨', '🌧', '🌦', '🌥', '🌡', '🌪', '🌫', '🌬', '🌩', '🌨', '🌧', '🌦', '🌥', '🌡', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '𤾾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🏵', '🏰', '🏠', '🏡', '🏢', '', '🏥', '🏦', '🏧', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏮', '🏯', '🚣', '🛥', '🚂', '🚁', '🚀', '🛸', '🛹', '🚴', '🚲', '🛺', '🚮', '🚯', '🚱', '🚫', '🚽', '️', '💣', '🔫', '🕷️', '🕸️', '💀', '👻', '🕺', '💃', '🕴️', '👶', '👵', '👴', '👱', '👨', '👩', '👧', '👦', '👪', '👫', '👭', '👬', '👮', '🕴️', '💼', '📊', '📈', '📉', '📊', '📝', '📚', '📰', '📱', '💻', '📻', '📺', '🎬', '📽️', '📸', '📷', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '𤾾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🏵', '🏰', '🐒', '🦍', '🦧', '🐶', '🐕', '🦮', '🐕‍🦺', '🐩', '🐺', '🦊', '🦝', '🐱', '🐈', '🐈‍⬛', '🦁', '🐯', '🐅', '🐆', '🐴', '🐎', '🦄', '🦓', '🦌', '🦬', '🐮', '🐂', '🐃', '🐄', '🐷', '🐖', '🐗', '🐽', '🐏', '🐑', '🐐', '🐪', '🐫', '🦙', '🦒', '🐘', '🦣', '🦏', '🦛', '🐭', '🐁', '🐀', '🐹', '🐰', '🐇', '🐿️', '🦫', '🦔', '🦇', '🐻', '🐻‍❄️', '🐨', '🐼', '🦥', '🦦', '🦨', '🦘', '🦡', '🐾', '🦃', '🐔', '🐓', '🐣', '🐤', '🐥', '🐦', '🐧', '🕊️', '🦅', '🦆', '🦢', '🦉', '🦤', '🪶', '🦩', '🦚', '🦜', '🐸', '🐊', '🐢', '🦎', '🐍', '🐲', '🐉', '🦕', '🦖', '🐳', '🐋', '🐬', '🦭', '🐟', '🐠', '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '☺️', '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😶‍🌫️', '😏', '😒', '🙄', '😬', '😮‍💨', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '😵‍💫', '🤯', '🤠', '🥳', '🥸', '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻', '👽', '👾', '🤖', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾', '🙈', '🙉', '🙊', '💋', '💌', '💘', '💝', '💖', '💗', '💓', '💞', '💕', '💟', '❣️', '💔', '❤️‍🔥', '❤️‍🩹', '❤️', '🧡', '💛', '💚', '💙', '💜', '🤎', '🖤', '🤍', '💯', '💢', '💥', '💫', '💦', '💨', '️', '💣', '💬', '👁️‍🗨️', '🗨️', '🗯️', '💭', '💤', '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🧠', '🫀', '🫁', '🦷', '🦴', '👀', '👁️', '👅', '👄', '👶', '🧒', '👦', '👧', '🧑', '👱', '👨', '🧔', '🧔‍♂️', '🧔‍♀️', '👨‍🦰', '👨‍🦱', '👨‍🦳', '👨‍🦲', '👩', '👩‍🦰', '🧑‍🦰', '👩‍🦱', '👩‍🦳', '👩‍🦲', '🧑‍🦱', '🧑‍🦳', '🧑‍🦲', '👱‍♀️', '👱‍♂️', '🧓', '👴', '👵', '🙍', '🙍‍♂️', '🙍‍♀️', '🙎', '🙎‍♂️', '🙎‍♀️', '🙅', '🙅‍♂️', '🙅‍♀️', '🙆', '🙆‍♂️', '🙆‍♀️', '💁', '💁‍♂️', '💁‍♀️', '🙋', '🙋‍♂️', '🙋‍♀️', '🧏', '🧏‍♂️', '🧏‍♀️', '🙇', '🙇‍♂️', '🙇‍♀️', '🤦', '🤦‍♂️', '🤦‍♀️', '🤷', '🤷‍♂️', '🤷‍♀️', '🧑‍⚕️', '👨‍⚕️', '👩‍⚕️', '🧑‍🎓', '👨‍🎓', '👩‍🎓', '🧑‍🏫', '👨‍🏫', '👩‍🏫', '🧑‍⚖️', '👨‍⚖️', '👩‍⚖️', '🧑‍🌾', '👨‍🌾', '👩‍🌾', '🧑‍🍳', '👨‍🍳', '👩‍🍳', '🧑‍🔧', '👨‍🔧', '👩‍🔧', '🧑‍🏭', '👨‍🏭', '👩‍🏭', '🧑‍💼', '👨‍💼', '👩‍💼', '🧑‍🔬', '👨‍🔬', '👩‍🔬', '🧑‍💻', '👨‍💻', '👩‍💻', '🧑‍🎤', '👨‍🎤', '👩‍🎤', '🧑‍🎨', '👨‍🎨', '👩‍🎨', '🧑‍✈️', '👨‍✈️', '👩‍✈️', '🧑‍🚀', '👨‍🚀', '👩‍🚀', '🧑‍🚒', '👨‍🚒', '👩‍🚒', '👮', '👮‍♂️', '👮‍♀️', '🕵️', '🕵️‍♂️', '🕵️‍♀️', '💂', '💂‍♂️', '💂‍♀️', '🥷', '👷', '👷‍♂️', '👷‍♀️', '🤴', '👸', '👳', '👳‍♂️', '👳‍♀️', '👲', '🧕', '🤵', '🤵‍♂️', '🤵‍♀️', '👰', '👰‍♂️', '👰‍♀️', '🤰', '🤱', '👩‍🍼', '👨‍🍼', '🧑‍🍼', '👼', '🎅', '🤶', '🧑‍🎄', '🦸', '🦸‍♂️', '🦸‍♀️', '🦹', '🦹‍♂️', '🦹‍♀️', '🧙', '🧙‍♂️', '🧙‍♀️', '🧚', '🧚‍♂️', '🧚‍♀️', '🧛', '🧛‍♂️', '🧛‍♀️', '🧜', '🧜‍♂️', '🧜‍♀️', '🧝', '🧝‍♂️', '🧝‍♀️', '🧞', '🧞‍♂️', '🧞‍♀️', '🧟', '🧟‍♂️', '🧟‍♀️', '💆', '💆‍♂️', '💆‍♀️', '💇', '💇‍♂️', '💇‍♀️', '🚶', '🚶‍♂️', '🚶‍♀️', '🧍', '🧍‍♂️', '🧍‍♀️', '🧎', '🧎‍♂️', '🧎‍♀️', '🧑‍🦯', '👨‍🦯', '👩‍🦯', '🧑‍🦼', '👨‍🦼', '👩‍🦼', '🧑‍🦽', '👨‍🦽', '👩‍🦽', '🏃', '🏃‍♂️', '🏃‍♀️', '💃', '🕺', '🕴️', '👯', '👯‍♂️', '👯‍♀️', '🧖', '🧖‍♂️', '🧖‍♀️', '🧗', '🧗‍♂️', '🧗‍♀️', '🤺', '🏇', '⛷️', '🏂', '🏌️', '🏌️‍♂️', '🏌️‍♀️', '🏄', '🏄‍♂️', '🏄‍♀️', '🚣', '🚣‍♂️', '🚣‍♀️', '🏊', '🏊‍♂️', '🏊‍♀️', '⛹️', '⛹️‍♂️', '⛹️‍♀️', '🏋️', '🏋️‍♂️', '🏋️‍♀️', '🚴', '🚴‍♂️', '🚴‍♀️', '🚵', '🚵‍♂️', '🚵‍♀️', '🤸', '🤸‍♂️', '🤸‍♀️', '🤼', '🤼‍♂️', '🤼‍♀️', '🤽', '🤽‍♂️', '🤽‍♀️', '𤾾', '𤾾‍♂️', '𤾾‍♀️', '🤹', '🤹‍♂️', '🤹‍♀️', '🧘', '🧘‍♂️', '🧘‍♀️', '🛀', '🛌', '🧑‍🤝‍🧑', '👭', '👫', '👬', '💏', '👩‍❤️‍💋‍👨', '👨‍❤️‍💋‍👨', '👩‍❤️‍💋‍👩', '💑', '👩‍❤️‍👨', '👨‍❤️‍👨', '👩‍❤️‍👩', '👪', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👩‍👧‍👦', '👨‍👩‍👦‍👦', '👨‍👩‍👧‍👧', '👨‍👨‍👦', '👨‍👨‍👧', '👨‍👨‍👧‍👦', '👨‍👨‍👦‍👦', '👨‍👨‍👧‍👧', '👩‍👩‍👦', '👩‍👩‍👧', '👩‍👩‍👧‍👦', '👩‍👩‍👦‍👦', '👩‍👩‍👧‍👧', '👨‍👦', '👨‍👦‍👦', '👨‍👧', '👨‍👧‍👦', '👨‍👧‍👧', '👩‍👦', '👩‍👦‍👦', '👩‍👧', '👩‍👧‍👦', '👩‍👧‍👧', '🗣️', '👤', '👥', '🫂', '👣', '🦰', '🦱', '🦳', '🦲', '🐵'
-  ];
-
-  const uniqueEmojis = [...new Set(emojiList)];
-
-  sock.ev.on('creds.update', saveCreds);
-
-  sock.ev.on('messages.upsert', async (messageUpsert) => {
-    messageUpsert = messageUpsert.messages[0];
-
-    if (!messageUpsert.message) return;
-
-    messageUpsert.type = getContentType(messageUpsert.message) === 'ephemeralMessage' ? messageUpsert.message.ephemeralMessage.message : messageUpsert.message;
-
-    if (messageUpsert.key && messageUpsert.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REPLY === 'true') {
-      try {
-        await sock.readMessages([messageUpsert.key]);
-
-        const botJid = await jidNormalizedUser(sock.user.id);
-        const reactEmoji = '💚';
-
-        await sock.sendMessage(messageUpsert.key.participant, {
-          react: {
-            key: messageUpsert.key,
-            text: reactEmoji
-          }
-        }, { statusJidList: [messageUpsert.key.participant, botJid] });
-
-        console.log('📖 Status message marked as read and reacted to');
-      } catch (error) {
-        console.error('❌ Failed to mark status as read:', error);
-      }
-    }
-
-    messageUpsert.typeMessage = messageUpsert.message.imageMessage ? 'imageMessage' : messageUpsert.message.videoMessage ? 'videoMessage' : messageUpsert.message.audioMessage ? 'audioMessage' : Object.keys(messageUpsert.message)[0];
-    messageUpsert.text = messageUpsert.typeMessage == 'conversation' ? messageUpsert.message.conversation : '';
-
-    if (messageUpsert.message.extendedTextMessage && messageUpsert.message.extendedTextMessage.contextInfo) {
-      const quotedMsg = messageUpsert.message.extendedTextMessage.contextInfo.quotedMessage;
-      const quotedText = messageUpsert.message.extendedTextMessage.contextInfo.text?.trim().toLowerCase();
-
-      if (sendTranslations.includes(quotedText) && quotedMsg.participant && quotedMsg.participant.includes('@s.whatsapp.net')) {
-        const remoteJid = messageUpsert.key.remoteJid;
-        const quotedSender = quotedMsg.participant;
-        const stanzaId = quotedMsg.stanzaId;
-
-        try {
-          await sock.sendMessage(remoteJid, { text: '❤️‍🩹*DEW MD STATUS SARVER*❤️‍🩹/n/n' + botFunctions.ALIVE_IMG }, { quoted: messageUpsert });
-          await sock.sendMessage(remoteJid, { forward: { key: { remoteJid: 'status@broadcast', fromMe: false, id: stanzaId }, message: quotedMsg.quotedMessage } }, { quoted: messageUpsert });
-          console.log('♻ status Save from ' + quotedSender + ' to ' + remoteJid);
-        } catch (error) {
-          console.error('Error forwarding quoted message:', error);
-        }
-      }
-    }
-
-    if (messageUpsert.key && messageUpsert.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_MSG === 'true') {
-      const participantJid = messageUpsert.key.participant;
-      const statusMsg = '' + botFunctions.COPYRIGHT;
-
-      await sock.sendMessage(participantJid, { text: statusMsg, react: { text: '💜', key: messageUpsert.key } }, { quoted: messageUpsert });
-    }
-
-    const m = sms(sock, messageUpsert);
-    const contentType = getContentType(messageUpsert.message);
-    const messageString = JSON.stringify(messageUpsert.message);
-    const from = messageUpsert.key.remoteJid;
-    const mentions = contentType == 'extendedTextMessage' && messageUpsert.message.extendedTextMessage.contextInfo != null ? messageUpsert.message.extendedTextMessage.contextInfo.mentionedJid || [] : [];
-    const body = contentType === 'conversation' ? messageUpsert.message.conversation : contentType === 'extendedTextMessage' ? messageUpsert.message.extendedTextMessage.text : contentType == 'imageMessage' && messageUpsert.message.imageMessage.caption ? messageUpsert.message.imageMessage.caption : contentType == 'videoMessage' && messageUpsert.message.videoMessage.caption ? messageUpsert.message.videoMessage.caption : '';
-
-    const isCmd = body.startsWith(prefix);
-    const command = isCmd ? body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : '';
-    const args = body.trim().toLowerCase().replace(/ +/g, ' ').slice(1);
-    const q = args.join(' ');
-    const isGroup = from.includes('@g.us');
-    const sender = messageUpsert.key.fromMe ? sock.user.id.split(':')[0] + '@s.whatsapp.net' || sock.user.id : messageUpsert.key.participant || messageUpsert.key.remoteJid;
-    const senderNumber = sender.split('@')[0];
-    const botNumber = sock.user.id.split(':')[0];
-    const pushname = messageUpsert.pushName || 'Unknown';
-    const isMe = botNumber.includes(senderNumber);
-    const isOwner = ownerNumber.includes(senderNumber) || isMe;
-    const botJid = await jidNormalizedUser(sock.user.id);
-    const groupMetadata = isGroup ? await sock.groupMetadata(from).catch(() => { }) : undefined;
-    const groupName = groupMetadata?.subject || '';
-    const participants = groupMetadata?.participants || [];
-    const groupAdmins = getGroupAdmins(participants);
-    const isBotAdmins = groupAdmins.includes(botJid);
-    const isAdmins = groupAdmins.includes(sender);
-    const isQuoted = m.message.quoted ? true : false;
-
-    const prefixRegex = config.PREFIX === 'false' || config.PREFIX === 'null' ? '^' : new RegExp('^[' + config.PREFIX + ']');
-
-    const isJidInList = (jid) => {
-      let list = jid;
-      for (let i = 0; i < list.length; i++) {
-        if (list[i] === from) return true;
-      }
-      return false;
-    };
-
-    let devData = (await axios.get('https://dew-md-data.pages.dev/DATA-BASE/devolopers.json')).data;
-    const devList = devData.split(',');
-    const isDev = [...devList].map(num => num.replace(/[^0-9]/g, '') + '@s.whatsapp.net').includes(sender);
-
-    const qMessage = {
-      key: { fromMe: false, remoteJid: 'status@broadcast', participant: '13135550002@s.whatsapp.net' },
-      message: { contactMessage: { displayName: 'DEW-AI', vcard: 'BEGIN:VCARD\nVERSION:3.0\nFN:DEW-AI\nTEL;type=CELL;type=VOICE;waid=13135550002:13135550002\nEND:VCARD' } }
-    };
-
-    const contextInfo = { mentionedJid: [m.sender], forwardingScore: 999, isForwarded: true, forwardedNewsletterMessageInfo: { newsletterJid: '120363400706010828@newsletter', newsletterName: 'Meta AI', serverMessageId: 683 } };
-
-    const reply = (text) => {
-      sock.sendMessage(from, { text: text }, { quoted: messageUpsert });
-    };
-
-    const isCreator = (id) => {
-      const owner = '13135550002@s.whatsapp.net';
-      return id === owner || isMe(id);
-    };
-
-    sock.sendFileUrl = async (jid, url, caption, quoted, options = {}) => {
-      let mimeType = '', response = await axios.head(url);
-      mimeType = response.headers['content-type'];
-
-      if (mimeType.split('/')[1] === 'gif') return sock.sendMessage(jid, { video: await getBuffer(url), caption: caption, gifPlayback: true, ...options }, { quoted: quoted, ...options });
-
-      let type = mimeType.split('/')[0] + 'Message';
-
-      if (mimeType === 'application/pdf') return sock.sendMessage(jid, { document: await getBuffer(url), mimetype: 'application/pdf', caption: caption, ...options }, { quoted: quoted, ...options });
-
-      if (mimeType.split('/')[0] === 'image') return sock.sendMessage(jid, { image: await getBuffer(url), caption: caption, ...options }, { quoted: quoted, ...options });
-
-      if (mimeType.split('/')[0] === 'video') return sock.sendMessage(jid, { video: await getBuffer(url), caption: caption, mimetype: 'video/mp4', ...options }, { quoted: quoted, ...options });
-
-      if (mimeType.split('/')[0] === 'audio') return sock.sendMessage(jid, { audio: await getBuffer(url), caption: caption, mimetype: 'audio/mpeg', ...options }, { quoted: quoted, ...options });
-    };
-
-    if (!isQuoted && senderNumber !== botNumber) {
-      if (config.AUTO_REACT === 'true') {
-        const randomEmoji = uniqueEmojis[Math.floor(Math.random() * uniqueEmojis.length)];
-        m.react(randomEmoji);
-      }
-    }
-
-    isCmd && config.AUTO_TYPING === 'true' && await sock.sendPresenceUpdate('composing', from);
-
-    if (!isOwner && isCreator && config.MODE === 'private') return;
-    if (!isOwner && isCreator && isGroup && config.MODE === 'inbox') return;
-    if (!isOwner && isCreator && !isGroup && config.MODE === 'groups') return;
-
-    if (senderNumber.includes('13135550002')) {
-      if (isQuoted) return;
-      m.react('👨‍💻');
-    }
-
-    const commandsList = require('./lib/command');
-    const cmdFound = isCmd ? commandsList.commands.find(cmd => cmd.pattern === command) || commandsList.commands.find(cmdCmd => cmdCmd.alias && cmdCmd.alias.includes(command)) : false;
-
-    if (cmdFound) {
-      if (cmdFound.react) sock.sendMessage(from, { react: { text: cmdFound.react, key: messageUpsert.key } });
-
-      try {
-        cmdFound.function(sock, messageUpsert, m, {
-          from: from,
-          quoted: mentions,
-          body: body,
-          isCmd: isCmd,
-          command: command,
-          args: args,
-          q: q,
-          isGroup: isGroup,
-          sender: sender,
-          senderNumber: senderNumber,
-          botNumber2: botJid,
-          botNumber: botNumber,
-          pushname: pushname,
-          isMe: isMe,
-          isOwner: isOwner,
-          groupMetadata: groupMetadata,
-          groupName: groupName,
-          participants: participants,
-          groupAdmins: groupAdmins,
-          isBotAdmins: isBotAdmins,
-          isAdmins: isAdmins,
-          qMessage: qMessage,
-          contextInfo: contextInfo,
-          isCreator: isCreator,
-          reply: reply
-        });
-      } catch (error) {
-        console.log('[PLUGIN ERROR] ' + error);
-      }
-    }
-
-    commandsList.commands.map(async (plugin) => {
-      if (body && plugin.on === 'body') plugin.function(sock, messageUpsert, m, {
-        from: from,
-        quoted: mentions,
-        body: body,
-        isCmd: isCmd,
-        command: plugin,
-        args: args,
-        q: q,
-        isGroup: isGroup,
-        sender: sender,
-        senderNumber: senderNumber,
-        botNumber2: botJid,
-        botNumber: botNumber,
-        pushname: pushname,
-        isMe: isMe,
-        isOwner: isOwner,
-        groupMetadata: groupMetadata,
-        groupName: groupName,
-        participants: participants,
-        groupAdmins: groupAdmins,
-        isBotAdmins: isBotAdmins,
-        isAdmins: isAdmins,
-        qMessage: qMessage,
-        contextInfo: contextInfo,
-        isCreator: isCreator,
-        reply: reply
-      }); else {
-        if (messageUpsert.q && plugin.on === 'text') plugin.function(sock, messageUpsert, m, {
-          from: from,
-          quoted: mentions,
-          body: body,
-          isCmd: isCmd,
-          command: plugin,
-          args: args,
-          q: q,
-          isGroup: isGroup,
-          sender: sender,
-          senderNumber: senderNumber,
-          botNumber2: botJid,
-          botNumber: botNumber,
-          pushname: pushname,
-          isMe: isMe,
-          isOwner: isOwner,
-          groupMetadata: groupMetadata,
-          groupName: groupName,
-          participants: participants,
-          groupAdmins: groupAdmins,
-          isBotAdmins: isBotAdmins,
-          isAdmins: isAdmins,
-          qMessage: qMessage,
-          contextInfo: contextInfo,
-          isCreator: isCreator,
-          reply: reply
-        }); else {
-          if ((plugin.on === 'image' || plugin.on === 'photo') && messageUpsert.typeMessage === 'imageMessage') plugin.function(sock, messageUpsert, m, {
-            from: from,
-            quoted: mentions,
-            body: body,
-            isCmd: isCmd,
-            command: plugin,
-            args: args,
-            q: q,
-            isGroup: isGroup,
-            sender: sender,
-            senderNumber: senderNumber,
-            botNumber2: botJid,
-            botNumber: botNumber,
-            pushname: pushname,
-            isMe: isMe,
-            isOwner: isOwner,
-            groupMetadata: groupMetadata,
-            groupName: groupName,
-            participants: participants,
-            groupAdmins: groupAdmins,
-            isBotAdmins: isBotAdmins,
-            isAdmins: isAdmins,
-            qMessage: qMessage,
-            contextInfo: contextInfo,
-            isCreator: isCreator,
-            reply: reply
-          }); else plugin.on === 'sticker' && messageUpsert.typeMessage === 'stickerMessage' && plugin.function(sock, messageUpsert, m, {
-            from: from,
-            quoted: mentions,
-            body: body,
-            isCmd: isCmd,
-            command: plugin,
-            args: args,
-            q: q,
-            isGroup: isGroup,
-            sender: sender,
-            senderNumber: senderNumber,
-            botNumber2: botJid,
-            botNumber: botNumber,
-            pushname: pushname,
-            isMe: isMe,
-            isOwner: isOwner,
-            groupMetadata: groupMetadata,
-            groupName: groupName,
-            participants: participants,
-            groupAdmins: groupAdmins,
-            isBotAdmins: isBotAdmins,
-            isAdmins: isAdmins,
-            qMessage: qMessage,
-            contextInfo: contextInfo,
-            isCreator: isCreator,
-            reply: reply
-          });
-        }
-      }
-    });
-
-    if (config.AUTO_VOICE === 'true') {
-      if (!isCmd && messageUpsert.type !== 'audioMessage' && !isMe) {
-        const autoVoiceUrl = 'https://dew-md-data.pages.dev/DATA-BASE/Auto-Mation/Auto-Voice.json';
-        let { data: autoVoiceData } = await axios.get(autoVoiceUrl);
-
-        for (vr in autoVoiceData) {
-          if (new RegExp('\\b' + vr + '\\b', 'gi').test(body)) sock.sendMessage(from, { audio: { url: autoVoiceData[vr] }, mimetype: 'audio/mpeg', ptt: true }, { quoted: messageUpsert });
-        }
-      }
-    }
-
-    if (config.AUTO_REPLY === 'true') {
-      if (!isCmd && !isMe) {
-        const autoReplyUrl = 'https://dew-md-data.pages.dev/DATA-BASE/Auto-Mation/auto-reply.json';
-        let { data: autoReplyData } = await axios.get(autoReplyUrl);
-
-        for (vr in autoReplyData) {
-          if (new RegExp('\\b' + vr + '\\b', 'gi').test(body)) m.reply(autoReplyData[vr]);
-        }
-      }
-    }
-
-    let checkCmd = body ? prefixRegex.test(body[0]) : 'false';
-    if (config.READ_CMD === 'true' && checkCmd) await sock.readMessages([messageUpsert.key]);
-    if (config.READ_MESSAGE === 'true') sock.readMessages([messageUpsert.key]);
-    if (config.AUTO_RECORDING === 'true') sock.sendPresenceUpdate('recording', from);
-    if (config.AUTO_TYPING === 'true') sock.sendPresenceUpdate('composing', from);
-    if (config.ALWAYS_ONLINE === 'true') sock.sendPresenceUpdate('available')['catch'](() => { });
-    if (config.ALWAYS_ONLINE === 'false') await sock.sendPresenceUpdate('unavailable');
-
-    if (config.ANTI_LINK == 'true' && m.key.remoteJid.includes('@g.us') && !isOwner) return sock.sendMessage(m.key.remoteJid, '🚫 *This message was deleted !!*\n\n');
-
-    if (config.ANTI_DELETE == 'true') {
-      if (isJidInList && isBotAdmins && (!isAdmins && (!isMe && (body.includes('delete'))))) {
-        await sock.sendMessage(from, { delete: messageUpsert.key });
-        reply('*「 ⚠️ 𝑳𝑰𝑵𝑲 𝑫𝑬𝑳𝑬𝑻𝑬𝑫 ⚠️ 」*');
-      }
-
-      const badWords = await fetchJson('https://raw.githubusercontent.com/chamiofficial/server-/main/badby_alpha.json');
-
-      if (config.ANTI_BAD == 'true') {
-        if (!isAdmins && !isDev) {
-          for (any in badWords) {
-            if (body.toLowerCase().includes(badWords[any])) {
-              if (!body.includes('https')) {
-                if (!body.includes('tent')) {
-                  if (!body.includes('delete')) {
-                    if (groupAdmins.includes(sender)) return;
-                    if (messageUpsert.key.fromMe) return;
-                    await sock.sendMessage(from, { delete: messageUpsert.key });
-
-                    if (config.AUTO_BLOCK === 'true') {
-                      const blockUrl = 'https://dew-md-data.pages.dev/DATA-BASE/Auto-Mation/Auto-Voice.json';
-                      let { data: blockData } = await axios.get(blockUrl);
-                      if (blockData['hi']) await sock.sendMessage(from, { audio: { url: blockData['hi'] }, mimetype: 'audio/mpeg', ptt: true }, { quoted: messageUpsert });
-                    } else {
-                      await sock.sendMessage(from, { text: '*Bad word detected..!*' });
-                    }
-                    await sock.updateBlockStatus(from, [sender], 'block');
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
-      if (config.ANTI_DELETE === 'true') {
-        try {
-          if (messageUpsert.message.protocolMessage && messageUpsert.message.protocolMessage.type === 0) {
-            if (messageUpsert.key.fromMe) return;
-
-            const deletedMsgKey = messageUpsert.message.protocolMessage.key;
-            const msgId = deletedMsgKey.id;
-
-            if (messageStore.has(msgId)) {
-              const originalMsg = messageStore.get(msgId);
-              const originalSender = originalMsg.key.participant || originalMsg.key.remoteJid;
-              const deleterSender = messageUpsert.key.participant || messageUpsert.key.remoteJid;
-              let sendTo = from;
-
-              if (config.DELETEMSGSENDTO === 'me') sendTo = botNumber + '@s.whatsapp.net'; else {
-                if (config.DELETEMSGSENDTO === 'owner') sendTo = ownerNumber[0] + '@s.whatsapp.net'; else config.DELETEMSGSENDTO && config.DELETEMSGSENDTO !== 'null' && (sendTo = config.DELETEMSGSENDTO.includes('@') ? config.DELETEMSGSENDTO : config.DELETEMSGSENDTO + '@g.us');
-              }
-
-              const headerMsg = '🚫 *This message was deleted !!*\n\n' + ('  🚮 *Deleted by:* @' + deleterSender.split('@')[0] + '\n') + ('  📩 *Sent by:* @' + originalSender.split('@')[0] + '\n\n');
-
-              const downloadMedia = async (mediaMsg, mediaType) => {
-                const stream = await downloadContentFromMessage(mediaMsg, mediaType);
-                let buffer = Buffer.from([]);
-                for await (const chunk of stream) {
-                  buffer = Buffer.concat([buffer, chunk]);
-                }
-                return buffer;
-              };
-
-              let msgType = getContentType(originalMsg.message);
-              let msgContent = originalMsg.message[msgType];
-
-              if (msgType === 'viewOnceMessage' || msgType === 'viewOnceMessageV2') {
-                const realMsg = originalMsg.message[msgType].message;
-                msgType = getContentType(realMsg);
-                msgContent = realMsg[msgType];
-              }
-
-              if (msgType === 'conversation') await sock.sendMessage(sendTo, { text: headerMsg + '> 🔓 Message Text: ```' + originalMsg.message.conversation + '```', mentions: [originalSender, deleterSender] }, { quoted: originalMsg }); else {
-                if (msgType === 'extendedTextMessage') await sock.sendMessage(sendTo, { text: headerMsg + '> 🔓 Message Text: ```' + msgContent.text + '```', mentions: [originalSender, deleterSender] }, { quoted: originalMsg }); else {
-                  if (msgType === 'imageMessage') {
-                    const mediaBuffer = await downloadMedia(msgContent, 'image');
-                    await sock.sendMessage(sendTo, { image: mediaBuffer, caption: headerMsg + '> 🔓 Caption: ```' + (msgContent.caption || '') + '```', mentions: [originalSender, deleterSender] }, { quoted: originalMsg });
-                  } else {
-                    if (msgType === 'videoMessage') {
-                      const mediaBuffer = await downloadMedia(msgContent, 'video');
-                      await sock.sendMessage(sendTo, { video: mediaBuffer, caption: headerMsg + '> 🔓 Caption: ```' + (msgContent.caption || '') + '```', mentions: [originalSender, deleterSender] }, { quoted: originalMsg });
-                    } else {
-                      if (msgType === 'audioMessage') {
-                        const mediaBuffer = await downloadMedia(msgContent, 'audio');
-                        await sock.sendMessage(sendTo, { audio: mediaBuffer, mimetype: 'audio/mp4', ptt: msgContent.ptt, caption: headerMsg, mentions: [originalSender, deleterSender] }, { quoted: originalMsg });
-                      } else {
-                        if (msgType === 'stickerMessage') {
-                          const mediaBuffer = await downloadMedia(msgContent, 'sticker');
-                          await sock.sendMessage(sendTo, { sticker: mediaBuffer, mentions: [originalSender, deleterSender] }, { quoted: originalMsg });
-                        } else {
-                          if (msgType === 'documentMessage') {
-                            const mediaBuffer = await downloadMedia(msgContent, 'document');
-                            await sock.sendMessage(sendTo, { document: mediaBuffer, mimetype: msgContent.mimetype, fileName: msgContent.fileName, caption: headerMsg + '> 🔓 Caption: ```' + (msgContent.caption || '') + '```', mentions: [originalSender, deleterSender] }, { quoted: originalMsg });
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            } else {
-              if (messageUpsert.key.remoteJid !== 'status@broadcast' && !messageUpsert.key.remoteJid.includes('@newsletter')) {
-                messageStore.set(messageUpsert.key.id, messageUpsert);
-                if (messageStore.size > 1000) {
-                  const firstKey = messageStore.keys().next().value;
-                  messageStore.delete(firstKey);
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.log('Anti-Delete Error:', error);
-        }
-      }
-    });
+    const data = fs.readFileSync(settingsFile, 'utf8');
+    return Object.assign({}, defaultSettings, JSON.parse(data || '{}'));
+  } catch (error) {
+    console.error('Failed to load settings:', error.message);
+    return { ...defaultSettings };
+  }
 }
 
-app.get('/', (req, res) => {
-  res.send('⏤ ͟͞ ❮❮ 𝔻𝔼𝕎-ℂ𝕆𝔻𝔼ℝ𝕊 ❯❯ ⏤ᴅᴇᴡ-ᴍᴅᵀᴹ ヤ');
+function saveSettings(settings) {
+  try {
+    fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    console.error('Failed to save settings:', error.message);
+    return false;
+  }
+}
+
+function generatePassword(length = 8) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  let pwd = '';
+  for (let i = 0; i < length; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+  return pwd;
+}
+
+function getOwnerJid() {
+  if (!config.OWNER_NUMBER) return null;
+  return config.OWNER_NUMBER.includes('@') ? config.OWNER_NUMBER : `${config.OWNER_NUMBER}@s.whatsapp.net`;
+}
+
+if (!fs.existsSync(authFolder)) {
+  fs.mkdirSync(authFolder, { recursive: true });
+}
+
+function createPairCode() {
+  return Math.random().toString().slice(2, 14).padEnd(12, '0');
+}
+
+async function createQrCodeData(qrString) {
+  const qrDataUrl = await qrcode.toDataURL(qrString, { type: 'image/png', width: 400 });
+  return qrDataUrl.split(',')[1];
+}
+
+async function connectToWhatsApp() {
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+    let version = [3, 5, 4];
+
+    try {
+      const update = await fetchLatestBaileysVersion();
+      version = update.version || version;
+    } catch (error) {
+      console.log('⚠️ Could not fetch latest Baileys version, using fallback version');
+    }
+
+    sock = makeWASocket({
+      logger: P({ level: 'silent' }),
+      browser: ['PS', 'MD', '1.0.0'],
+      auth: state,
+      version,
+      syncFullHistory: false
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', async (update) => {
+      pairingState.lastUpdate = new Date().toISOString();
+      const { connection, lastDisconnect, qr } = update;
+      console.log('🔄 connection.update', JSON.stringify(update));
+
+      if (qr) {
+        pairingState.qrCode = await createQrCodeData(qr);
+        pairingState.pairCode = pairingState.pairCode || createPairCode();
+        pairingState.isConnected = false;
+        pairingState.connectionTime = null;
+        pairingState.error = null;
+        console.log('🔗 QR code generated. Open /pairing to scan.');
+      }
+
+      if (connection === 'open') {
+        pairingState.isConnected = true;
+        pairingState.connectionTime = new Date().toLocaleString();
+        pairingState.botNumber = sock.user?.id || null;
+        pairingState.qrCode = null;
+        pairingState.pairCode = null;
+        pairingState.error = null;
+
+        const settings = loadSettings();
+        const sessionPassword = generatePassword(8);
+        settings.currentSessionPassword = sessionPassword;
+        saveSettings(settings);
+        pairingState.sessionPassword = sessionPassword;
+
+        const connectMessage = `*🎭 PS MD බොට් සම්බන්ධ වෙමින් පවතී... 🔄*
+
+*කරුණාකර මිනිත්තු 5ක් රැඳී සිටින්න... ⏳*
+* _ඉන්පසු .alive විධානය භාවිතා කරන්න_
+
+*මිනිත්තු 5කට පසු කිසිදු ප්‍රතිචාරයක් නොලැබේ නම් පමණක්:*
+* _කරුණාකර ඔබේ උපාංගය නැවත සම්බන්ධ කරන්න ( ʀᴇ-ʟɪɴᴋ ᴅᴇᴠɪᴄᴇ ) 🔁_
+
+🔐 *ඔබේ මුරපදය:* \`${sessionPassword}\` 
+🛠 *සැකසුම් වෙනස් කිරීමට මෙම මුරපදය භාවිතා කරන්න*`;
+        const botId = sock.user?.id;
+
+        if (botId) {
+          await sock.sendMessage(botId, { text: connectMessage });
+        }
+
+        const ownerJid = getOwnerJid();
+        if (ownerJid) {
+          await sock.sendMessage(ownerJid, { text: connectMessage });
+        }
+
+        console.log('✅ PS MD is connected to WhatsApp.');
+      }
+
+      if (connection === 'close') {
+        pairingState.isConnected = false;
+        console.log('❌ WhatsApp connection closed:', JSON.stringify(lastDisconnect || {}));
+        if (lastDisconnect?.error?.output?.statusCode === DisconnectReason.loggedOut) {
+          console.log('⚠️ Logged out from WhatsApp. Clearing session and exiting.');
+          fs.rmSync(authFolder, { recursive: true, force: true });
+          process.exit(0);
+        } else {
+          console.log('⚠️ Connection closed. Reconnecting in 5 seconds...');
+          setTimeout(connectToWhatsApp, 5000);
+        }
+      }
+    });
+
+    sock.ev.on('messages.upsert', async (messageUpsert) => {
+      try {
+        const messages = messageUpsert.messages || [];
+        const message = messages[0];
+        if (!message || !message.message) return;
+
+        const type = getContentType(message.message);
+        const from = message.key.remoteJid;
+        const text =
+          type === 'conversation'
+            ? message.message.conversation
+            : type === 'extendedTextMessage'
+            ? message.message.extendedTextMessage.text || ''
+            : '';
+
+        if (!text || !from || from === 'status@broadcast') return;
+
+        const settings = loadSettings();
+        const prefix = settings.prefix || config.PREFIX;
+        const trimmed = text.trim();
+        const command = trimmed.startsWith(prefix)
+          ? trimmed.slice(prefix.length).split(' ')[0].toLowerCase()
+          : null;
+        const args = trimmed.split(' ').slice(1);
+        const q = args.join(' ');
+
+        const menuResponses = {
+          system: `🖥️ System status is stable. Use .alive to check bot connectivity.`,
+          bot: `🤖 PS MD is ready. Use .menu to explore commands.`,
+          privacy: `🔒 Privacy command received. Visit /settings to configure bot security and privacy options.`,
+          setting: `⚙️ Open the settings page at /settings to update bot configuration and password.`,
+          getdp: `📸 getdp is available. This command will fetch a profile picture once integrated.`,
+          csong: `🎵 csong command is available. Use it for custom song tools.`,
+          setsudo: `🛡️ setsudo command is available. Manage sudo users from the settings page.`,
+          delsudo: `❌ delsudo is available. Manage sudo users from the settings page.`,
+          setcall: `📞 setcall command is available. Configure call handling from settings.`,
+          delcall: `🗑️ delcall is available.`,
+          ban: `⛔ ban command is available. Use it to block users or groups when fully integrated.`,
+          unban: `✅ unban command is available.`,
+          song: `🎵 Social song search is available.`,
+          video: `🎬 Social video download is available.`,
+          fb: `📘 Facebook download is available.`,
+          tiktok: `🎥 TikTok download is available.`,
+          insta: `📷 Instagram download is available.`,
+          twitter: `🐦 Twitter download is available.`,
+          movie: `🎞️ Movie search is available.`,
+          apk: `📦 APK search is available.`,
+          img: `🖼️ Image search is available.`,
+          xnxx: `🔞 XNXX download is available.`,
+          xham: `🔞 Xhamster download is available.`,
+          del: `🗑️ del command placeholder.`,
+          tagadmins: `🏷️ tagadmins placeholder.`,
+          tagall: `📢 tagall placeholder.`,
+          hidetag: `🙈 hidetag placeholder.`,
+          ginfo: `ℹ️ ginfo placeholder.`,
+          glink: `🔗 glink placeholder.`,
+          grlink: `🔗 grlink placeholder.`,
+          gnlink: `🔗 gnlink placeholder.`,
+          gname: `📝 gname placeholder.`,
+          gdec: `✍️ gdec placeholder.`,
+          gdp: `🖼️ gdp placeholder.`,
+          grdp: `🖼️ grdp placeholder.`,
+          lock: `🔒 lock placeholder.`,
+          unlock: `🔓 unlock placeholder.`,
+          close: `🚫 close placeholder.`,
+          open: `✅ open placeholder.`,
+          addadmin: `➕ addadmin placeholder.`,
+          addmember: `➕ addmember placeholder.`,
+          join: `🔗 join placeholder.`,
+          left: `👋 left placeholder.`,
+          gdisappearing: `🕳️ gdisappearing placeholder.`,
+          pin: `📌 pin placeholder.`,
+          unpin: `📍 unpin placeholder.`,
+          gsave: `💾 gsave placeholder.`,
+          ganti: `🔄 ganti placeholder.`,
+          mychannels: `📺 mychannels placeholder.`,
+          setchannel: `📺 setchannel placeholder.`,
+          delchannel: `🗑️ delchannel placeholder.`,
+          creact: `🎉 creact placeholder.`
+        };
+
+        const commandHandlers = {
+          menu: async () => {
+            const menuText = `📜 *PS MD MENU*\n\n*OWNER MENU*\nprivacy | setting | getdp | csong | setsudo | delsudo | setcall | delcall | ban | unban\n\n*SOCIAL MENU*\nsong | video | fb | tiktok | insta | twitter | movie | apk | img | xnxx | xham\n\n*AI MENU*\nfluxai\n\n*GROUP MENU*\nadd | kick | promote | del | tagadmins | tagall | hidetag | ginfo | glink | grlink | gnlink | gname | gdec | gdp | grdp | lock | unlock | close | open | addadmin | addmember | join | left | gdisappearing | pin | unpin | gsave | ban | unban | ganti\n\n*TOOLS MENU*\nping | system | alive | menu | bot\n\n*EDUCATION MENU*\npaper\n\n*CHANNEL MENU*\nmychannels | setchannel | delchannel | creact`;
+            await sock.sendMessage(from, { text: menuText }, { quoted: message });
+          },
+          alive: async () => {
+            const aliveText = `💚 *PS MD is online*\nConnected: ${pairingState.isConnected ? 'Yes' : 'No'}\nBot Number: ${pairingState.botNumber || 'Not available'}\nSession Password: ${pairingState.sessionPassword || 'Not set'}`;
+            await sock.sendMessage(from, { text: aliveText }, { quoted: message });
+          },
+          ping: async () => {
+            await sock.sendMessage(from, { text: '🏓 Pong! Bot latency is good.' }, { quoted: message });
+          },
+          add: async () => {
+            if (!from.endsWith('@g.us')) return await sock.sendMessage(from, { text: 'This command can only be used in groups.' }, { quoted: message });
+            const mentioned = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+            if (mentioned.length === 0) return await sock.sendMessage(from, { text: 'Please mention a user to add.' }, { quoted: message });
+            try {
+              await sock.groupParticipantsUpdate(from, mentioned, 'add');
+              await sock.sendMessage(from, { text: `✅ Added ${mentioned.length} user(s) to the group.` }, { quoted: message });
+            } catch (error) {
+              await sock.sendMessage(from, { text: '❌ Failed to add user(s).' }, { quoted: message });
+            }
+          },
+          kick: async () => {
+            if (!from.endsWith('@g.us')) return await sock.sendMessage(from, { text: 'This command can only be used in groups.' }, { quoted: message });
+            const mentioned = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+            if (mentioned.length === 0) return await sock.sendMessage(from, { text: 'Please mention a user to kick.' }, { quoted: message });
+            try {
+              await sock.groupParticipantsUpdate(from, mentioned, 'remove');
+              await sock.sendMessage(from, { text: `✅ Kicked ${mentioned.length} user(s) from the group.` }, { quoted: message });
+            } catch (error) {
+              await sock.sendMessage(from, { text: '❌ Failed to kick user(s).' }, { quoted: message });
+            }
+          },
+          promote: async () => {
+            if (!from.endsWith('@g.us')) return await sock.sendMessage(from, { text: 'This command can only be used in groups.' }, { quoted: message });
+            const mentioned = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+            if (mentioned.length === 0) return await sock.sendMessage(from, { text: 'Please mention a user to promote.' }, { quoted: message });
+            try {
+              await sock.groupParticipantsUpdate(from, mentioned, 'promote');
+              await sock.sendMessage(from, { text: `✅ Promoted ${mentioned.length} user(s) to admin.` }, { quoted: message });
+            } catch (error) {
+              await sock.sendMessage(from, { text: '❌ Failed to promote user(s).' }, { quoted: message });
+            }
+          },
+          // Add more handlers as needed
+        };
+
+        if (command && commandHandlers[command]) {
+          await commandHandlers[command]();
+        } else if (command && menuResponses[command]) {
+          await sock.sendMessage(from, { text: menuResponses[command] }, { quoted: message });
+        }
+
+        if (command && menuResponses[command]) {
+          return await sock.sendMessage(from, { text: menuResponses[command] }, { quoted: message });
+        }
+      } catch (error) {
+        console.error('Message handler error:', error.message || error);
+      }
+    });
+  } catch (error) {
+    console.error('❌ WhatsApp connection error:', error.message || error);
+    pairingState.error = error.message || 'Connection error';
+    setTimeout(connectToWhatsApp, 5000);
+  }
+}
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/pairing', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pairing.html'));
 });
 
-app.listen(port, '0.0.0.0', () => console.log('Server listening on port http://localhost:' + port));
+app.get('/settings', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'settings.html'));
+});
 
-setTimeout(() => {
-  connectToWA();
-}, 4000);
+app.get('/about', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'about.html'));
+});
 
-function getEmojiArray() {
-  const emojis = [
-    '😊', '👍', '😂', '💯', '🔥', '🙏', '🎉', '👏', '😎', '🤖', '👫', '👭', '👬', '👮', '🕴️', '💼', '📊', '📈', '📉', '📊', '📝', '📚', '📰', '📱', '💻', '📻', '📺', '🎬', '📽️', '📸', '📷', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '🤾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🏵', '🏰', '🏠', '🏡', '🏢', '🏣', '🏥', '🏦', '🏧', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏮', '🏯', '🚣', '🛥', '🚂', '🚁', '🚀', '🛸', '🛹', '🚴', '🚲', '🛺', '🚮', '🚯', '🚱', '🚫', '🚽', '🕳️', '💣', '🔫', '🕷️', '🕸️', '💀', '👻', '🕺', '💃', '🕴️', '👶', '👵', '👴', '👱', '👨', '👩', '👧', '👦', '👪', '👫', '👭', '👬', '👮', '🕴️', '💼', '📊', '📈', '📉', '📊', '📝', '📚', '📰', '📱', '💻', '📻', '📺', '🎬', '📽️', '📸', '📷', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '𤾾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🏵', '🏰', '🏠', '🏡', '🏢', '🏠', '🏡', '🏢', '🏣', '🏥', '🏦', '🏧', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏮', '🏯', '🚣', '🛥', '🚂', '🚁', '🚀', '🛸', '🛹', '🚴', '🚲', '🛺', '🚮', '🚯', '🚱', '🚫', '🚽', '️', '💣', '🔫', '🕷️', '🕸️', '💀', '👻', '🕺', '💃', '🕴️', '👶', '👵', '👴', '👱', '👨', '👩', '👧', '👦', '👪', '👫', '👭', '👬', '👮', '🕴️', '💼', '📊', '📈', '📉', '📊', '📝', '📚', '📰', '📱', '💻', '📻', '📺', '🎬', '📽️', '📸', '📷', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '𤾾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🏵', '🏰', '🐒', '🦍', '🦧', '🐶', '🐕', '🦮', '🐕‍🦺', '🐩', '🐺', '🦊', '🦝', '🐱', '🐈', '🐈‍⬛', '🦁', '🐯', '🐅', '🐆', '🐴', '🐎', '🦄', '🦓', '🦌', '🦬', '🐮', '🐂', '🐃', '🐄', '🐷', '🐖', '🐗', '🐽', '🐏', '🐑', '🐐', '🐪', '🐫', '🦙', '🦒', '🐘', '🦣', '🦏', '🦛', '🐭', '🐁', '🐀', '🐹', '🐰', '🐇', '🐿️', '🦫', '🦔', '🦇', '🐻', '🐻‍❄️', '🐨', '🐼', '🦥', '🦦', '🦨', '🦘', '🦡', '🐾', '🦃', '🐔', '🐓', '🐣', '🐤', '🐥', '🐦', '🐧', '🕊️', '🦅', '🦆', '🦢', '🦉', '🦤', '🪶', '🦩', '🦚', '🦜', '🐸', '🐊', '🐢', '🦎', '🐍', '🐲', '🐉', '🦕', '🦖', '🐳', '🐋', '🐬', '🦭', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🌳', '🌲', '🌾', '🌿', '🍃', '🍂', '🍃', '🌻', '💐', '🌹', '🌺', '🌸', '🌴', '🏵', '🎀', '🏆', '🏈', '🏉', '🎯', '🏀', '🏊', '🏋', '🏌', '🎲', '📚', '📖', '📜', '📝', '💭', '💬', '🗣', '💫', '🌟', '🌠', '🎉', '🎊', '👏', '💥', '🔥', '💥', '🌪', '💨', '🌫', '🌬', '🌩', '🌨', '🌧', '🌦', '🌥', '🌡', '🌪', '🌫', '🌬', '🌩', '🌨', '🌧', '🌦', '🌥', '🌡', '🌪', '🌫', '🌬', '🌩', '🌨', '🌧', '🌦', '🌥', '🌡', '🌱', '🌿', '🍃', '🍂', '🌻', '💐', '🌹', '🌺', '🌸', '🌴', '🏵', '🎀', '🏆', '🏈', '🏉', '🎯', '🏀', '🏊', '🏋', '🏌', '🎲', '📚', '📖', '📜', '📝', '💭', '💬', '🗣', '💫', '🌟', '🌠', '🎉', '🎊', '👏', '💥', '🔥', '💥', '🌪', '💨', '🌫', '🌬', '🌩', '🌨', '🌧', '🌦', '🌥', '🌡', '🌪', '🌫', '🌬', '🌩', '🌨', '🌧', '🌦', '🌥', '🌡', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '𤾾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🏵', '🏰', '🏠', '🏡', '🏢', '', '🏥', '🏦', '🏧', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏮', '🏯', '🚣', '🛥', '🚂', '🚁', '🚀', '🛸', '🛹', '🚴', '🚲', '🛺', '🚮', '🚯', '🚱', '🚫', '🚽', '️', '💣', '🔫', '🕷️', '🕸️', '💀', '👻', '🕺', '💃', '🕴️', '👶', '👵', '👴', '👱', '👨', '👩', '👧', '👦', '👪', '👫', '👭', '👬', '👮', '🕴️', '💼', '📊', '📈', '📉', '📊', '📝', '📚', '📰', '📱', '💻', '📻', '📺', '🎬', '📽️', '📸', '📷', '🕯️', '💡', '🔦', '🔧', '🔨', '🔩', '🔪', '🔫', '👑', '👸', '🤴', '👹', '🤺', '🤻', '👺', '🤼', '🤽', '𤾾', '🤿', '🦁', '🐴', '🦊', '🐺', '🐼', '🐾', '🐿', '🦄', '🦅', '🦆', '🦇', '🦈', '🐳', '🐋', '🐟', '🐠', '🐡', '🐙', '🐚', '🐜', '🐝', '🐞', '🕷️', '🦋', '🐛', '🐌', '🐚', '🌿', '🌸', '💐', '🌹', '🌺', '🌻', '🌴', '🏵', '🏰', '🐒', '🦍', '🦧', '🐶', '🐕', '🦮', '🐕‍🦺', '🐩', '🐺', '🦊', '🦝', '🐱', '🐈', '🐈‍⬛', '🦁', '🐯', '🐅', '🐆', '🐴', '🐎', '🦄', '🦓', '🦌', '🦬', '🐮', '🐂', '🐃', '🐄', '🐷', '🐖', '🐗', '🐽', '🐏', '🐑', '🐐', '🐪', '🐫', '🦙', '🦒', '🐘', '🦣', '🦏', '🦛', '🐭', '🐁', '🐀', '🐹', '🐰', '🐇', '🐿️', '🦫', '🦔', '🦇', '🐻', '🐻‍❄️', '🐨', '🐼', '🦥', '🦦', '🦨', '🦘', '🦡', '🐾', '🦃', '🐔', '🐓', '🐣', '🐤', '🐥', '🐦', '🐧', '🕊️', '🦅', '🦆', '🦢', '🦉', '🦤', '🪶', '🦩', '🦚', '🦜', '🐸', '🐊', '🐢', '🦎', '🐍', '🐲', '🐉', '🦕', '🦖', '🐳', '🐋', '🐬', '🦭', '🐟', '🐠', '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '☺️', '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😶‍🌫️', '😏', '😒', '🙄', '😬', '😮‍💨', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '😵‍💫', '🤯', '🤠', '🥳', '🥸', '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻', '👽', '👾', '🤖', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾', '🙈', '🙉', '🙊', '💋', '💌', '💘', '💝', '💖', '💗', '💓', '💞', '💕', '💟', '❣️', '💔', '❤️‍🔥', '❤️‍🩹', '❤️', '🧡', '💛', '💚', '💙', '💜', '🤎', '🖤', '🤍', '💯', '💢', '💥', '💫', '💦', '💨', '️', '💣', '💬', '👁️‍🗨️', '🗨️', '🗯️', '💭', '💤', '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🧠', '🫀', '🫁', '🦷', '🦴', '👀', '👁️', '👅', '👄', '👶', '🧒', '👦', '👧', '🧑', '👱', '👨', '🧔', '🧔‍♂️', '🧔‍♀️', '👨‍🦰', '👨‍🦱', '👨‍🦳', '👨‍🦲', '👩', '👩‍🦰', '🧑‍🦰', '👩‍🦱', '👩‍🦳', '👩‍🦲', '🧑‍🦱', '🧑‍🦳', '🧑‍🦲', '👱‍♀️', '👱‍♂️', '🧓', '👴', '👵', '🙍', '🙍‍♂️', '🙍‍♀️', '🙎', '🙎‍♂️', '🙎‍♀️', '🙅', '🙅‍♂️', '🙅‍♀️', '🙆', '🙆‍♂️', '🙆‍♀️', '💁', '💁‍♂️', '💁‍♀️', '🙋', '🙋‍♂️', '🙋‍♀️', '🧏', '🧏‍♂️', '🧏‍♀️', '🙇', '🙇‍♂️', '🙇‍♀️', '🤦', '🤦‍♂️', '🤦‍♀️', '🤷', '🤷‍♂️', '🤷‍♀️', '🧑‍⚕️', '👨‍⚕️', '👩‍⚕️', '🧑‍🎓', '👨‍🎓', '👩‍🎓', '🧑‍🏫', '👨‍🏫', '👩‍🏫', '🧑‍⚖️', '👨‍⚖️', '👩‍⚖️', '🧑‍🌾', '👨‍🌾', '👩‍🌾', '🧑‍🍳', '👨‍🍳', '👩‍🍳', '🧑‍🔧', '👨‍🔧', '👩‍🔧', '🧑‍🏭', '👨‍🏭', '👩‍🏭', '🧑‍💼', '👨‍💼', '👩‍💼', '🧑‍🔬', '👨‍🔬', '👩‍🔬', '🧑‍💻', '👨‍💻', '👩‍💻', '🧑‍🎤', '👨‍🎤', '👩‍🎤', '🧑‍🎨', '👨‍🎨', '👩‍🎨', '🧑‍✈️', '👨‍✈️', '👩‍✈️', '🧑‍🚀', '👨‍🚀', '👩‍🚀', '🧑‍🚒', '👨‍🚒', '👩‍🚒', '👮', '👮‍♂️', '👮‍♀️', '🕵️', '🕵️‍♂️', '🕵️‍♀️', '💂', '💂‍♂️', '💂‍♀️', '🥷', '👷', '👷‍♂️', '👷‍♀️', '🤴', '👸', '👳', '👳‍♂️', '👳‍♀️', '👲', '🧕', '🤵', '🤵‍♂️', '🤵‍♀️', '👰', '👰‍♂️', '👰‍♀️', '🤰', '🤱', '👩‍🍼', '👨‍🍼', '🧑‍🍼', '👼', '🎅', '🤶', '🧑‍🎄', '🦸', '🦸‍♂️', '🦸‍♀️', '🦹', '🦹‍♂️', '🦹‍♀️', '🧙', '🧙‍♂️', '🧙‍♀️', '🧚', '🧚‍♂️', '🧚‍♀️', '🧛', '🧛‍♂️', '🧛‍♀️', '🧜', '🧜‍♂️', '🧜‍♀️', '🧝', '🧝‍♂️', '🧝‍♀️', '🧞', '🧞‍♂️', '🧞‍♀️', '🧟', '🧟‍♂️', '🧟‍♀️', '💆', '💆‍♂️', '💆‍♀️', '💇', '💇‍♂️', '💇‍♀️', '🚶', '🚶‍♂️', '🚶‍♀️', '🧍', '🧍‍♂️', '🧍‍♀️', '🧎', '🧎‍♂️', '🧎‍♀️', '🧑‍🦯', '👨‍🦯', '👩‍🦯', '🧑‍🦼', '👨‍🦼', '👩‍🦼', '🧑‍🦽', '👨‍🦽', '👩‍🦽', '🏃', '🏃‍♂️', '🏃‍♀️', '💃', '🕺', '🕴️', '👯', '👯‍♂️', '👯‍♀️', '🧖', '🧖‍♂️', '🧖‍♀️', '🧗', '🧗‍♂️', '🧗‍♀️', '🤺', '🏇', '⛷️', '🏂', '🏌️', '🏌️‍♂️', '🏌️‍♀️', '🏄', '🏄‍♂️', '🏄‍♀️', '🚣', '🚣‍♂️', '🚣‍♀️', '🏊', '🏊‍♂️', '🏊‍♀️', '⛹️', '⛹️‍♂️', '⛹️‍♀️', '🏋️', '🏋️‍♂️', '🏋️‍♀️', '🚴', '🚴‍♂️', '🚴‍♀️', '🚵', '🚵‍♂️', '🚵‍♀️', '🤸', '🤸‍♂️', '🤸‍♀️', '🤼', '🤼‍♂️', '🤼‍♀️', '🤽', '🤽‍♂️', '🤽‍♀️', '𤾾', '𤾾‍♂️', '𤾾‍♀️', '🤹', '🤹‍♂️', '🤹‍♀️', '🧘', '🧘‍♂️', '🧘‍♀️', '🛀', '🛌', '🧑‍🤝‍🧑', '👭', '👫', '👬', '💏', '👩‍❤️‍💋‍👨', '👨‍❤️‍💋‍👨', '👩‍❤️‍💋‍👩', '💑', '👩‍❤️‍👨', '👨‍❤️‍👨', '👩‍❤️‍👩', '👪', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👩‍👧‍👦', '👨‍👩‍👦‍👦', '👨‍👩‍👧‍👧', '👨‍👨‍👦', '👨‍👨‍👧', '👨‍👨‍👧‍👦', '👨‍👨‍👦‍👦', '👨‍👨‍👧‍👧', '👩‍👩‍👦', '👩‍👩‍👧', '👩‍👩‍👧‍👦', '👩‍👩‍👦‍👦', '👩‍👩‍👧‍👧', '👨‍👦', '👨‍👦‍👦', '👨‍👧', '👨‍👧‍👦', '👨‍👧‍👧', '👩‍👦', '👩‍👦‍👦', '👩‍👧', '👩‍👧‍👦', '👩‍👧‍👧', '🗣️', '👤', '👥', '🫂', '👣', '🦰', '🦱', '🦳', '🦲', '🐵'
-  ];
-  return emojis;
-}
+app.get('/shop', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'shop.html'));
+});
+
+app.get('/contact', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'contact.html'));
+});
+
+app.get('/api/settings', (req, res) => {
+  const settings = loadSettings();
+  return res.json({
+    success: true,
+    settings: {
+      prefix: settings.prefix,
+      hasPassword: Boolean(settings.adminPassword),
+      sessionPassword: pairingState.sessionPassword,
+      welcomeText: settings.welcomeText
+    }
+  });
+});
+
+app.post('/api/settings/update', (req, res) => {
+  const { currentPassword, newPassword, prefix, welcomeText } = req.body || {};
+  const settings = loadSettings();
+
+  if (settings.adminPassword && currentPassword !== settings.adminPassword) {
+    return res.status(401).json({ success: false, message: 'Invalid current password' });
+  }
+
+  if (typeof newPassword === 'string' && newPassword.trim()) {
+    settings.adminPassword = newPassword.trim();
+  }
+  if (typeof prefix === 'string' && prefix.trim()) {
+    settings.prefix = prefix.trim();
+  }
+  if (typeof welcomeText === 'string' && welcomeText.trim()) {
+    settings.welcomeText = welcomeText.trim();
+  }
+
+  saveSettings(settings);
+  return res.json({ success: true, message: 'Settings updated successfully' });
+});
+
+app.post('/api/generate-pair-code', async (req, res) => {
+  const { phoneNumber } = req.body || {};
+  if (!phoneNumber || !/^\d{10,15}$/.test(phoneNumber)) {
+    return res.status(400).json({ success: false, error: 'Invalid phone number' });
+  }
+
+  if (!sock) {
+    return res.status(503).json({ success: false, error: 'Bot is not connected yet. Please wait for the server to finish starting.' });
+  }
+
+  try {
+    const code = await sock.requestPairingCode(phoneNumber);
+    pairingState.pairCode = code;
+    return res.json({ success: true, pairCode: code });
+  } catch (error) {
+    console.error('Error generating pair code:', error);
+    return res.status(500).json({ success: false, error: 'Failed to generate pair code' });
+  }
+});
+
+app.get('/api/pairing-info', (req, res) => {
+  return res.json({
+    success: true,
+    qrCode: pairingState.qrCode,
+    pairCode: pairingState.pairCode,
+    botNumber: pairingState.botNumber,
+    connected: pairingState.isConnected,
+    connectionTime: pairingState.connectionTime,
+    error: pairingState.error,
+    lastUpdate: pairingState.lastUpdate
+  });
+});
+
+app.get('/api/connection-status', (req, res) => {
+  return res.json({
+    connected: pairingState.isConnected,
+    connectionTime: pairingState.connectionTime,
+    error: pairingState.error,
+    lastUpdate: pairingState.lastUpdate
+  });
+});
+
+app.post('/api/refresh-qr', (req, res) => {
+  if (pairingState.qrCode) {
+    return res.json({
+      success: true,
+      qrCode: pairingState.qrCode,
+      message: 'QR code refreshed'
+    });
+  }
+
+  const message = pairingState.error
+    ? `Bot error: ${pairingState.error}`
+    : 'QR code not available yet. Please wait for the bot to generate one.';
+
+  return res.json({ success: false, message });
+});
+
+app.listen(port, '0.0.0.0', () => {
+  console.log('🚀 PS MD server running');
+  console.log(`📡 Open http://localhost:${port}/pairing to pair WhatsApp`);
+  console.log(`⚙️ Settings page: http://localhost:${port}/settings`);
+  console.log(`📊 API status: http://localhost:${port}/api/pairing-info`);
+});
+
+connectToWhatsApp();

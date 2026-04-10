@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PS MD Pairing | WhatsApp Bot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    :root {
+      --red: #ff3d3d;
+      --gold: #ffd700;
+      --black: #000;
+      --dark-red: #cc0000;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: radial-gradient(circle at top, rgba(255, 61, 61, 0.1), transparent 20%),
+                  linear-gradient(135deg, #080808 0%, #1b0000 45%, #0d0d0d 100%);
+      color: #fff;
+      overflow-x: hidden;
+      position: relative;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 61, 61, 0.03) 0px,
+        rgba(255, 61, 61, 0.03) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+      pointer-events: none;
+      animation: flicker 0.16s infinite;
+      z-index: 0;
+    }
+    @keyframes flicker {
+      0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+      20%, 24%, 55% { opacity: 0.96; }
+    }
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 30px 24px 40px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 42px;
+      letter-spacing: 4px;
+      color: #ff3d3d;
+      text-transform: uppercase;
+      text-shadow: 0 0 18px rgba(255, 61, 61, 0.8);
+    }
+    .nav {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .nav a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: color 0.2s ease;
+    }
+    .nav a:hover { color: #ff3d3d; }
+    .hero {
+      background: rgba(0, 0, 0, 0.88);
+      border: 2px solid rgba(255, 61, 61, 0.22);
+      padding: 34px;
+      box-shadow: inset 0 0 30px rgba(255, 61, 61, 0.08);
+      margin-bottom: 32px;
+    }
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(42px, 6vw, 68px);
+      color: #ff3d3d;
+      letter-spacing: 4px;
+      margin-bottom: 18px;
+      text-transform: uppercase;
+    }
+    .hero p {
+      color: #ccc;
+      line-height: 1.8;
+      max-width: 760px;
+      margin-bottom: 24px;
+      font-size: 15px;
+    }
+    .tabs {
+      display: inline-flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .tab {
+      padding: 12px 22px;
+      border: 1px solid rgba(255, 61, 61, 0.2);
+      background: rgba(255, 61, 61, 0.1);
+      color: #fff;
+      cursor: pointer;
+      font-family: 'Bebas Neue', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    .tab.active {
+      background: #ff3d3d;
+      color: #111;
+      border-color: #ff3d3d;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 28px;
+      align-items: start;
+    }
+    .panel {
+      background: rgba(0, 0, 0, 0.92);
+      border: 2px solid rgba(255, 61, 61, 0.22);
+      padding: 26px;
+      box-shadow: inset 0 0 30px rgba(255, 61, 61, 0.08);
+    }
+    .panel h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 24px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #ff3d3d;
+      margin-bottom: 18px;
+    }
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+    .qr-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 2px dashed rgba(255, 61, 61, 0.4);
+      border-radius: 10px;
+      min-height: 360px;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .qr-card img {
+      max-width: 100%;
+      height: auto;
+      filter: drop-shadow(0 0 20px rgba(255, 61, 61, 0.4));
+    }
+    .qr-card .empty {
+      color: #999;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .pair-form {
+      display: grid;
+      gap: 16px;
+    }
+    .pair-form input {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid rgba(255, 61, 61, 0.22);
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 14px;
+    }
+    .pair-form input::placeholder { color: #777; }
+    .pair-form button {
+      border: 2px solid #ff3d3d;
+      background: linear-gradient(135deg, #ff3d3d 0%, #cc0000 100%);
+      color: #fff;
+      padding: 16px;
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .pair-form button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 24px rgba(255, 61, 61, 0.4);
+    }
+    .pair-output {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 61, 61, 0.2);
+      min-height: 110px;
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      padding: 18px;
+      font-family: 'Roboto', sans-serif;
+      font-size: 16px;
+      letter-spacing: 0.18em;
+      text-align: center;
+      color: #ff3d3d;
+    }
+    .pair-output small {
+      display: block;
+      margin-top: 10px;
+      color: #aaa;
+      font-size: 13px;
+      letter-spacing: normal;
+    }
+    .status-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 61, 61, 0.2);
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .status-item {
+      flex: 1;
+      min-width: 170px;
+      color: #ccc;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 61, 61, 0.15);
+      padding: 16px;
+    }
+    .status-item h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 13px;
+      color: #ff3d3d;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .status-item p {
+      font-size: 14px;
+      color: #eee;
+      line-height: 1.6;
+    }
+    .actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+    .actions button {
+      border: 2px solid rgba(255, 61, 61, 0.4);
+      background: rgba(255, 61, 61, 0.12);
+      color: #fff;
+      padding: 14px 20px;
+      cursor: pointer;
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 1px;
+    }
+    .actions button:hover { color: #ff3d3d; }
+    .bottom-note {
+      margin-top: 20px;
+      color: #999;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    @media (max-width: 1024px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .topbar { flex-direction: column; align-items: flex-start; }
+      .hero h1 { font-size: 36px; }
+      .tab { padding: 10px 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="logo">PS MD</div>
+      <nav class="nav">
+        <a href="/">Home</a>
+        <a href="/pairing">Pairing</a>
+        <a href="/settings">Settings</a>
+        <a href="/about">About</a>
+        <a href="/shop">Shop</a>
+        <a href="/contact">Contact</a>
+      <div class="tabs">
+        <div id="tabQr" class="tab active" onclick="setTab('qr')">QR Mode</div>
+        <div id="tabPair" class="tab" onclick="setTab('pair')">Pair Code</div>
+      </div>
+      <div class="grid">
+        <div class="panel">
+          <div class="tab-panel active" id="qrPanel">
+            <h2>Scan QR Code</h2>
+            <div class="qr-card" id="qrCard">
+              <div class="empty">Loading QR code... Please wait.</div>
+            </div>
+            <p class="bottom-note">Open WhatsApp → Linked Devices → Link a Device → Scan this code.</p>
+          </div>
+
+          <div class="tab-panel" id="pairPanel">
+            <h2>Generate Pair Code</h2>
+            <form class="pair-form" onsubmit="event.preventDefault(); generatePairCode();">
+              <input id="phoneNumber" type="text" placeholder="Enter phone number e.g. 947XXXXXXXX" />
+              <button type="submit">Generate Code</button>
+            </form>
+            <div class="pair-output" id="pairOutput"><span id="pairCodeText">No code generated yet.</span><small>Enter any phone number and press Generate.</small></div>
+            <p class="bottom-note">Anyone can enter a valid phone number and generate a unique pair code.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Connection Status</h2>
+          <div class="status-card">
+            <div class="status-item">
+              <h3>Bot</h3>
+              <p id="statusText">Waiting for connection...</p>
+            </div>
+            <div class="status-item">
+              <h3>Connected</h3>
+              <p id="connectedText">Unknown</p>
+            </div>
+            <div class="status-item">
+              <h3>Bot Number</h3>
+              <p id="botNumberText">Not available</p>
+            </div>
+          </div>
+          <div class="actions">
+            <button onclick="refreshQR()">Refresh QR</button>
+            <button onclick="copyPairCode()">Copy Code</button>
+          </div>
+          <p class="bottom-note">If QR does not appear, wait a few seconds and refresh. Pair codes remain available after generation.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    let pairingData = null;
+    let currentTab = 'qr';
+
+    function setTab(tab) {
+      currentTab = tab;
+      document.getElementById('tabQr').classList.toggle('active', tab === 'qr');
+      document.getElementById('tabPair').classList.toggle('active', tab === 'pair');
+      document.getElementById('qrPanel').classList.toggle('active', tab === 'qr');
+      document.getElementById('pairPanel').classList.toggle('active', tab === 'pair');
+    }
+
+    async function loadPairingData() {
+      try {
+        const response = await fetch('/api/pairing-info');
+        const data = await response.json();
+        if (!data.success) throw new Error('Unable to load pairing data');
+        pairingData = data;
+        updateQr(data.qrCode);
+        updatePair(data.pairCode);
+        updateStatus(data);
+      } catch (error) {
+        console.error(error);
+        document.getElementById('qrCard').innerHTML = '<div class="empty">Unable to load QR code. Refresh or try again later.</div>';
+      }
+    }
+
+    function updateQr(qrCode) {
+      const container = document.getElementById('qrCard');
+      if (qrCode) {
+        container.innerHTML = `<img src="data:image/png;base64,${qrCode}" alt="WhatsApp QR Code" />`;
+      } else {
+        container.innerHTML = '<div class="empty">QR code is not available yet. Please wait while the bot generates it.</div>';
+      }
+    }
+
+    function updatePair(code) {
+      const output = document.getElementById('pairOutput');
+      if (code) {
+        output.innerHTML = `<span id="pairCodeText">${formatPair(code)}</span><small>Copy the code and use it on WhatsApp Link a Device.</small>`;
+      } else {
+        output.innerHTML = '<span id="pairCodeText">No code generated yet.</span><small>Enter any phone number and press Generate.</small>';
+      }
+    }
+
+    function formatPair(code) {
+      return code ? code.match(/.{1,4}/g).join(' ') : '';
+    }
+
+    function updateStatus(data) {
+      document.getElementById('statusText').textContent = data.error ? `Error: ${data.error}` : 'Bot is active and ready.';
+      document.getElementById('connectedText').textContent = data.connected ? 'Yes' : 'No';
+      document.getElementById('botNumberText').textContent = data.botNumber || 'Not available';
+    }
+
+    function showError(message) {
+      const output = document.getElementById('pairOutput');
+      output.innerHTML = `<span style="color: #ff7777;">${message}</span>`;
+    }
+
+    async function generatePairCode() {
+      const phoneInput = document.getElementById('phoneNumber');
+      const phone = phoneInput.value.trim();
+      if (!phone) {
+        showError('Please enter a phone number.');
+        return;
+      }
+      if (!/^\d{10,15}$/.test(phone)) {
+        showError('Phone number must contain 10-15 digits only.');
+        return;
+      }
+      document.getElementById('pairOutput').innerHTML = 'Generating pair code...';
+      try {
+        const response = await fetch('/api/generate-pair-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: phone })
+        });
+        const data = await response.json();
+        if (!data.success) {
+          showError(data.error || 'Failed to create pair code.');
+          return;
+        }
+        updatePair(data.pairCode);
+      } catch (error) {
+        showError('Server error while generating code.');
+      }
+    }
+
+    async function refreshQR() {
+      try {
+        const response = await fetch('/api/refresh-qr', { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+          updateQr(data.qrCode);
+        } else {
+          console.error(data.message);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    function copyPairCode() {
+      const codeElement = document.getElementById('pairCodeText');
+      if (!codeElement) {
+        alert('No pair code available. Generate one first.');
+        return;
+      }
+      const output = codeElement.textContent.replace(/\s/g, '');
+      if (!output || output === 'No code generated yet.') {
+        alert('No pair code available. Generate one first.');
+        return;
+      }
+      navigator.clipboard.writeText(output).then(() => {
+        alert('Pair code copied to clipboard.');
+      }).catch(() => {
+        alert('Unable to copy. Please select the code manually.');
+      });
+    }
+
+    setTab('qr');
+    window.addEventListener('load', () => {
+      loadPairingData();
+      setInterval(loadPairingData, 25000);
+    });
+  </script>
+</body>
+</html>

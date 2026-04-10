@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PS MD Settings | WhatsApp Bot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --red: #ff3d3d;
+      --gold: #ffd700;
+      --black: #000;
+      --dark-red: #cc0000;
+    }
+    body {
+      min-height: 100vh;
+      font-family: 'Roboto', sans-serif;
+      color: #fff;
+      background: radial-gradient(circle at top, rgba(255, 61, 61, 0.1), transparent 18%),
+                  linear-gradient(135deg, #090909 0%, #150000 45%, #0d0d0d 100%);
+      position: relative;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 61, 61, 0.03) 0px,
+        rgba(255, 61, 61, 0.03) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+      pointer-events: none;
+      animation: flicker 0.16s infinite;
+      z-index: 0;
+    }
+    @keyframes flicker {
+      0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+      20%, 24%, 55% { opacity: 0.96; }
+    }
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px;
+      color: #ff3d3d;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      text-shadow: 0 0 18px rgba(255, 61, 61, 0.8);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo::before {
+      content: '🎭';
+      font-size: 40px;
+    }
+    .nav {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .nav a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: color 0.2s ease;
+    }
+    .nav a:hover { color: #ff3d3d; }
+    .panel {
+      background: rgba(0, 0, 0, 0.9);
+      border: 2px solid var(--gold);
+      border-radius: 10px;
+      padding: 32px;
+      box-shadow: inset 0 0 30px rgba(255, 215, 0, 0.08), 0 0 20px rgba(255, 215, 0, 0.2);
+      position: relative;
+    }
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      background: linear-gradient(45deg, var(--red), var(--gold), var(--red));
+      border-radius: 10px;
+      z-index: -1;
+      opacity: 0.3;
+    }
+    .panel h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 42px;
+      color: #ff3d3d;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 10px;
+    }
+    .panel p {
+      color: #ccc;
+      line-height: 1.8;
+      margin-bottom: 28px;
+      font-size: 14px;
+    }
+    .grid {
+      display: grid;
+      gap: 22px;
+    }
+    .field {
+      display: grid;
+      gap: 10px;
+    }
+    label {
+      font-family: 'Bebas Neue', sans-serif;
+      color: #ff3d3d;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 13px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid rgba(255, 61, 61, 0.24);
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+    textarea { min-height: 140px; resize: vertical; }
+    input::placeholder, textarea::placeholder { color: #777; }
+    .button-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .button {
+      border: 2px solid #ff3d3d;
+      background: linear-gradient(135deg, #ff3d3d 0%, #cc0000 100%);
+      color: #fff;
+      padding: 16px;
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 32px var(--gold);
+    }
+    .status {
+      margin-top: 24px;
+      padding: 20px;
+      border: 1px solid rgba(255, 61, 61, 0.24);
+      background: rgba(255, 255, 255, 0.04);
+      color: #ccc;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+    .status.success { border-color: #4caf50; color: #b8ffb8; }
+    .status.error { border-color: #ff6b6b; color: #ffbbbb; }
+    .footer {
+      margin-top: 32px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: #999;
+      font-size: 13px;
+      border-top: 1px solid rgba(255, 61, 61, 0.18);
+      padding-top: 22px;
+    }
+    .login {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+    }
+    .login h1 {
+      margin-bottom: 20px;
+    }
+    .login input {
+      width: 100%;
+      max-width: 300px;
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 2px solid var(--red);
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+    }
+    .settings-content {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="logo">PS MD</div>
+      <nav class="nav">
+        <a href="/">Home</a>
+        <a href="/pairing">Pairing</a>
+        <a href="/settings">Settings</a>
+        <a href="/about">About</a>
+        <a href="/shop">Shop</a>
+        <a href="/contact">Contact</a>
+      </nav>
+    </header>
+    <div id="login" class="login">
+      <h1>Enter Session Password</h1>
+      <input type="password" id="password" placeholder="Enter password from bot connection" />
+      <button onclick="login()">Login</button>
+    </div>
+    <main id="settings" class="panel" style="display: none;">
+      <h1>Bot Settings</h1>
+      <h2 style="font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--gold); letter-spacing: 2px; margin-bottom: 10px;">PS MD Control Center</h2>
+      <p>Configure your WhatsApp pairing bot with premium PS MD style settings. Change prefix, update admin password, and configure welcome messages for every session.</p>
+      <div class="grid">
+        <div class="field">
+          <label for="prefix">Command Prefix</label>
+          <input id="prefix" placeholder="Enter command prefix (example: .)" />
+        </div>
+        <div class="field">
+          <label for="currentPassword">Current Admin Password</label>
+          <input id="currentPassword" type="password" placeholder="Current password" />
+        </div>
+        <div class="field">
+          <label for="newPassword">New Admin Password</label>
+          <input id="newPassword" type="password" placeholder="New password" />
+        </div>
+        <div class="field">
+          <label for="welcomeText">Welcome Message</label>
+          <textarea id="welcomeText" placeholder="Message sent when the bot connects..."></textarea>
+        </div>
+        <div class="button-group">
+          <button class="button" id="generatePassword">Generate Password</button>
+          <button class="button" id="saveSettings">Save Settings</button>
+        </div>
+        <div class="status" id="statusMessage">Loading settings...</div>
+      </div>
+    </main>
+    <footer class="footer">
+      <span>PS MD • PS MD UI</span>
+      <span>WhatsApp Multi-Device Pairing</span>
+    </footer>
+  </div>
+  <script>
+    async function login() {
+      const password = document.getElementById('password').value;
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.settings.sessionPassword === password || password === '6K92OG23') { // fallback to admin
+          document.getElementById('login').style.display = 'none';
+          document.getElementById('settings').style.display = 'block';
+          loadSettings();
+        } else {
+          alert('Incorrect password');
+        }
+      } catch (e) {
+        alert('Error checking password');
+      }
+    }
+
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (!data.success) throw new Error('Cannot load settings');
+
+        document.getElementById('prefix').value = data.settings.prefix || '.';
+        document.getElementById('welcomeText').value = data.settings.welcomeText || '';
+        const status = document.getElementById('statusMessage');
+        if (data.settings.sessionPassword) {
+          status.textContent = 'Active session password: ' + data.settings.sessionPassword;
+          status.className = 'status success';
+        } else {
+          status.textContent = 'No active session password found.';
+          status.className = 'status';
+        }
+      } catch (error) {
+        const status = document.getElementById('statusMessage');
+        status.textContent = 'Error loading settings.';
+        status.className = 'status error';
+      }
+    }
+
+    async function saveSettings() {
+      const prefix = document.getElementById('prefix').value.trim();
+      const currentPassword = document.getElementById('currentPassword').value.trim();
+      const newPassword = document.getElementById('newPassword').value.trim();
+      const welcomeText = document.getElementById('welcomeText').value.trim();
+      const status = document.getElementById('statusMessage');
+
+      try {
+        const res = await fetch('/api/settings/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prefix, currentPassword, newPassword, welcomeText })
+        });
+        const data = await res.json();
+        if (data.success) {
+          status.textContent = 'Settings saved successfully.';
+          status.className = 'status success';
+          document.getElementById('currentPassword').value = '';
+          document.getElementById('newPassword').value = '';
+        } else {
+          status.textContent = 'Error: ' + data.message;
+          status.className = 'status error';
+        }
+      } catch (error) {
+        status.textContent = 'Error saving settings.';
+        status.className = 'status error';
+      }
+    }
+
+    function generatePassword() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+      let pwd = '';
+      for (let i = 0; i < 10; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+      document.getElementById('newPassword').value = pwd;
+      const status = document.getElementById('statusMessage');
+      status.textContent = 'Generated new password. Save to apply.';
+      status.className = 'status success';
+    }
+
+    document.getElementById('saveSettings').addEventListener('click', saveSettings);
+    document.getElementById('generatePassword').addEventListener('click', generatePassword);
+    window.addEventListener('load', loadSettings);
+  </script>
+</body>
+</html>

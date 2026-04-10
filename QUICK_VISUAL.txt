@@ -1,0 +1,119 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║           🚀 PS MD - WhatsApp Bot - Quick Reference            ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+┌─ STEP 1: START ─────────────────────────────────────────────┐
+│                                                               │
+│  npm start                                                    │
+│                                                               │
+│  You'll see beautiful startup banner:                        │
+│  ╔════════════════════════════════════╗                      │
+│  ║     🚀 PS MD - WhatsApp Bot       ║                      │
+│  ║         v1.0.0                     ║                      │
+│  ╚════════════════════════════════════╝                      │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+
+┌─ STEP 2: OPEN BROWSER ──────────────────────────────────────┐
+│                                                               │
+│  http://localhost:9090/pairing                               │
+│                                                               │
+│  ┌──────────────────────────────────────┐                   │
+│  │     🚀 PS MD                         │                   │
+│  │  WhatsApp Bot Pairing                │                   │
+│  │                                      │                   │
+│  │  [Large QR Code Here]  [Pair Code]  │                   │
+│  │                         1234 5678    │                   │
+│  │  🔄 Refresh QR Code    📋 Copy     │                   │
+│  │                                      │                   │
+│  │  Status: ⏳ Waiting...               │                   │
+│  │                                      │                   │
+│  │  📖 Instructions on page             │                   │
+│  │                                      │                   │
+│  └──────────────────────────────────────┘                   │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+
+┌─ STEP 3: PAIR WHATSAPP ─────────────────────────────────────┐
+│                                                               │
+│  Choose Method 1 or 2:                                       │
+│                                                               │
+│  📱 METHOD 1: QR Code (Recommended)                         │
+│     • Phone: WhatsApp → Settings → Linked Devices           │
+│     • Tap: Link a Device                                    │
+│     • Point camera at QR code on screen                     │
+│     • Confirm on phone                                      │
+│                                                               │
+│  📝 METHOD 2: Pair Code                                     │
+│     • Click: Copy Pair Code button                          │
+│     • Phone: WhatsApp → Settings → Linked Devices           │
+│     • Enter: 8-digit code (1234 5678)                       │
+│     • Confirm on phone                                      │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+
+┌─ STEP 4: CONFIRMATION ──────────────────────────────────────┐
+│                                                               │
+│  Browser shows:                                              │
+│  ✅ Connection Status: Connected                            │
+│                                                               │
+│  Terminal shows:                                             │
+│  ✅ PS MD ♻ Bot connected to WhatsApp ✅                   │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+
+┌─ STEP 5: USE THE BOT ───────────────────────────────────────┐
+│                                                               │
+│  Send in WhatsApp:                                           │
+│                                                               │
+│  .ping               → Pong! ✅                              │
+│  .menu               → Show all commands                    │
+│  .help               → Get help                              │
+│  .ai hello           → AI response                           │
+│  .play song name     → Search music                         │
+│  .meme               → Random meme                          │
+│  .quote              → Inspirational quote                  │
+│                                                               │
+│  Type commands with . prefix in any WhatsApp chat!          │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════╗
+║                   IMPORTANT NOTES                              ║
+╚════════════════════════════════════════════════════════════════╝
+
+✓ Keep browser open until ✅ Connected appears
+✓ Use same WhatsApp account on your phone
+✓ Stable internet needed on both devices
+✓ Don't delete auth_info_baileys/ folder
+✓ For help: Read MASTER_GUIDE.md
+
+╔════════════════════════════════════════════════════════════════╗
+║                   KEY URLs                                     ║
+╚════════════════════════════════════════════════════════════════╝
+
+http://localhost:9090/pairing      → Main pairing page
+http://localhost:9090/             → Bot status
+http://localhost:9090/api/pairing-info  → API data
+
+╔════════════════════════════════════════════════════════════════╗
+║               TROUBLESHOOTING                                  ║
+╚════════════════════════════════════════════════════════════════╝
+
+QR not showing?        → Refresh page (F5), wait 10 sec
+Can't scan?            → Try pair code instead
+Bot not connecting?    → Check internet, restart bot
+Session expired?       → Delete rm -rf auth_info_baileys/
+
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║                  🚀 Ready to Start?                           ║
+║                                                                ║
+║                  npm start                                     ║
+║                  Then: http://localhost:9090/pairing           ║
+║                                                                ║
+║                    Enjoy PS MD! 🎉                           ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝

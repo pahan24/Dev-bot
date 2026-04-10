@@ -22,7 +22,7 @@ try{
     var am_pm = ''
     if (hrs < 12) am_pm = 'ᴀᴍ'
     if (hrs >= 12 && hrs <= 24) am_pm = 'ᴘᴍ'
-    let madeMenu = `👋 *HI*, *${pushname}*
+let madeMenu = `👋 *HI*, *${pushname}*
   
 ╭─「 ᴅᴀᴛᴇ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ 」
 │📅 *\`Date\`*: ${date}
@@ -30,7 +30,7 @@ try{
 ╰──────────●●►
 
 ╭──────────●●►
-│ *Hello , I am Dew MD!!*
+│ *Hello , I am PS MD!!*
 ╰──────────●●►
 
 ${bot.COPYRIGHT}`
@@ -312,35 +312,33 @@ cmd({
 },
 async (conn, mek, m, { from, pushname, reply, contextInfo }) => {
     try {
-        let desc = `
-🤩 *HELLOW* *${pushname}*
-> WELLCOME TO DEW-MD 🪀
+        let desc = `*🌍⃝⃘̉̉̉━⋆─⋆──❂*
+*┊ ┊ ┊ ┊ ┊*
+*┊ ┊ ✫ ˚㋛ ⋆｡ ❀*
+*┊ ☠︎︎*
+*✧  ${pushname}𓂃✍︎𝄞*
+*╰────────────────❂*
+*┏━━━━━━━━━━━━━❥❥❥*
+*┃*     *🏠 MAIN MENU*
+*┗━━━━━━━━━━━━━❥❥❥*
+*┏━━━━━━━━━━━━━❥❥❥*
+*┃* *𝙾𝚆𝙽𝙴𝚁* - PAHAN
+*┃* *𝚅𝙴𝚁𝚂𝙸𝙾𝙽* - ${bot.VERSION}
+*┃* *𝙲𝙾𝙼𝙼𝙰𝙽𝙳𝚂* - ${commands.length} 
+*┃* *𝙿𝚁𝙴𝙵𝙸𝚇* - [ ${config.PREFIX} ] 
+*┃* *𝙰𝙲𝚃𝙸𝚅𝙴 𝙱𝙾𝚃𝚂* - 3650
+*┗━━━━━━━━━━━━━❥❥❥*
+*┏━「 Reply Number ⤵️ 」*
+*┃* *1️⃣ OWNER MENU*
+*┃* *2️⃣ SOCIAL MENU*
+*┃* *3️⃣ AI MENU*
+*┃* *4️⃣ GROUP MENU*
+*┃* *5️⃣ TOOLS MENU*
+*┃* *6️⃣ EDUCATION MENU*
+*┃* *7️⃣ CHANNEL MENU*
+*┗━━━━━━━━━━━━━❥❥❥*
 
-╭─「 ꜱᴛᴀᴛᴜꜱ ᴅᴇᴛᴀɪʟꜱ 」
-│👤 *\`User\`*: ${pushname}
-│✒ *\`Prefix\`*: ${config.PREFIX}
-│🧬 *\`Version\`*: ${bot.VERSION}
-│📟 *\`Uptime\`*: ${runtime(process.uptime())}
-│📂 *\`Memory\`*: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
-╰──────────●●►
-
-> ʀᴇᴘʟʏ ᴛʜᴇ ɴᴜᴍʙᴇʀ ʙᴇʟᴏᴡ🗿
-
-1 │❯❯◦ OWNER MENU
-2 │❯❯◦ CONVERT MENU
-3 │❯❯◦ AI MENU
-4 │❯❯◦ SEARCH MENU
-5 │❯❯◦ DOWNLOAD MENU
-6 │❯❯◦ MAIN MENU
-7 │❯❯◦ GROUP MENU
-8 │❯❯◦ FUN MENU
-9 │❯❯◦ TOOLS MENU
-10 │❯❯◦ OTHER MENU
-11 │❯❯◦ MOVIE MENU
-12 │❯❯◦ NEWS MENU
-13 │❯❯◦ EDUCATION MENU 
-
-${bot.COPYRIGHT}`;
+> *Powered by PS MD*`;
 
         // Send the menu with an image
         const menuMessage = await conn.sendMessage(from, { 
@@ -360,131 +358,70 @@ ${bot.COPYRIGHT}`;
             if (msg.message.extendedTextMessage.contextInfo?.stanzaId === menuMessage.key.id) {
 
                 switch (selectedOption) {
-                    case '1':
-                        {
-                            const ownerCommands = commands.filter(c => c.category === 'owner' && !c.dontAddCommandList);
-                            const commandList = ownerCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response = `*◈ OWNER COMMAND LIST ◈*
-╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
-│◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
-│◈ *RUN TIME* - ${runtime(process.uptime())}
-╰──────────●●►
-╭────────●●►
+                    case '1': {
+                        const ownerCommands = ['privacy','setting','getdp','csong','setsudo','delsudo','setcall','delcall','ban','unban'];
+                        const commandList = ownerCommands.map(c => `*┃* *${c}*`).join('\n');
+                        const response = `*🌍⃝⃘̉̉̉━⋆─⋆──❂*
+*┊ ┊ ┊ ┊ ┊*
+*┊ ┊ ✫ ˚㋛ ⋆｡ ❀*
+*┊ ☠︎︎*
+*✧  OWNER MENU 𓂃✍︎𝄞*
+*╰────────────────❂*
+*┏━━━━━━━━━━━━━❥❥❥*
+*┃*     *👑 OWNER COMMANDS*
+*┗━━━━━━━━━━━━━❥❥❥*
+*┏━━━━━━━━━━━━━❥❥❥*
 ${commandList}
-╰────────●●►
-➠ *Total Commands: ${ownerCommands.length}*
-${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.OWNER_IMG }, 
-                            caption: response 
-                        }, { quoted: mek });
-                        }
-                        break;
-                    case '2':
-                        {
-                            const convertCommands = commands.filter(c => c.category === 'convert' && !c.dontAddCommandList);
-                            const commandList = convertCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response2 = `*◈ CONVERT COMMAND LIST ◈*
-╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
-│◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
-│◈ *RUN TIME* - ${runtime(process.uptime())}
-╰──────────●●►
-╭────────●●►
+*┃* *𝙲𝙾𝙼𝙼𝙰𝙽𝙳𝚂* - ${ownerCommands.length} 
+*┗━━━━━━━━━━━━━❥❥❥*
+
+> *Powered by PS MD*`;
+                        await conn.sendMessage(from, { image: { url: bot.OWNER_IMG }, caption: response }, { quoted: mek });
+                    } break;
+                    case '2': {
+                        const socialCommands = ['song','video','fb','tiktok','insta','twitter','movie','apk','img','xnxx','xham'];
+                        const commandList = socialCommands.map(c => `*┃* *${c}*`).join('\n');
+                        const response = `*🌍⃝⃘̉̉̉━⋆─⋆──❂*
+*┊ ┊ ┊ ┊ ┊*
+*┊ ┊ ✫ ˚㋛ ⋆｡ ❀*
+*┊ ☠︎︎*
+*✧  SOCIAL MENU 𓂃✍︎𝄞*
+*╰────────────────❂*
+*┏━━━━━━━━━━━━━❥❥❥*
+*┃*     *🎵 SOCIAL COMMANDS*
+*┗━━━━━━━━━━━━━❥❥❥*
+*┏━━━━━━━━━━━━━❥❥❥*
 ${commandList}
-╰────────●●►
-➠ *Total Commands: ${convertCommands.length}*
-${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.CONVERT_IMG }, 
-                            caption: response2 
-                        }, { quoted: mek });
-                        }
-                        break;
-                    case '3':
-                        {
-                            const aiCommands = commands.filter(c => c.category === 'ai' && !c.dontAddCommandList);
-                            const commandList = aiCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response3 = `*◈ AI COMMAND LIST ◈*
-╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
-│◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
-│◈ *RUN TIME* - ${runtime(process.uptime())}
-╰──────────●●►
-╭────────●●►
+*┃* *𝙲𝙾𝙼𝙼𝙰𝙽𝙳𝚂* - ${socialCommands.length} 
+*┗━━━━━━━━━━━━━❥❥❥*
+
+> *Powered by PS MD*`;
+                        await conn.sendMessage(from, { image: { url: bot.SEARCH_IMG }, caption: response }, { quoted: mek });
+                    } break;
+                    case '3': {
+                        const aiCommands = commands.filter(c => c.category === 'ai' && !c.dontAddCommandList);
+                        const commandList = aiCommands.length ? aiCommands.map(c => `*┃* *${c.pattern}*`).join('\n') : '*┃* *fluxai*';
+                        const response = `*🌍⃝⃘̉̉̉━⋆─⋆──❂*
+*┊ ┊ ┊ ┊ ┊*
+*┊ ┊ ✫ ˚㋛ ⋆｡ ❀*
+*┊ ☠︎︎*
+*✧  AI MENU 𓂃✍︎𝄞*
+*╰────────────────❂*
+*┏━━━━━━━━━━━━━❥❥❥*
+*┃*     *🤖 AI COMMANDS*
+*┗━━━━━━━━━━━━━❥❥❥*
+*┏━━━━━━━━━━━━━❥❥❥*
 ${commandList}
-╰────────●●►
-➠ *Total Commands: ${aiCommands.length}*
-${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.AI_IMG }, 
-                            caption: response3 
-                        }, { quoted: mek });
-                        }
-                        break;
-                    case '4':
-                        {
-                            const searchCommands = commands.filter(c => c.category === 'search' && !c.dontAddCommandList);
-                            const commandList = searchCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response4 = `*◈ SEARCH COMMAND LIST ◈*
-╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
-│◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
-│◈ *RUN TIME* - ${runtime(process.uptime())}
-╰──────────●●►
-╭────────●●►
-${commandList}
-╰────────●●►
-➠ *Total Commands: ${searchCommands.length}*
-${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.SEARCH_IMG }, 
-                            caption: response4 
-                        }, { quoted: mek });
-                        }
-                        break;
-                    case '5':
-                        {
-                            const downloadCommands = commands.filter(c => c.category === 'download' && !c.dontAddCommandList);
-                            const commandList = downloadCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response5 = `*◈ DOWNLOAD COMMAND LIST ◈*
-╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
-│◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
-│◈ *RUN TIME* - ${runtime(process.uptime())}
-╰──────────●●►
-╭────────●●►
-${commandList}
-╰────────●●►
-➠ *Total Commands: ${downloadCommands.length}*
-${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.DOWNLOAD_IMG }, 
-                            caption: response5 
-                        }, { quoted: mek });
-                        }
-                        break;
-                    case '6':
-                        {
-                            const mainCommands = commands.filter(c => c.category === 'main' && !c.dontAddCommandList);
-                            const commandList = mainCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response6 = `*◈ MAIN COMMAND LIST ◈*
-╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
-│◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
-│◈ *RUN TIME* - ${runtime(process.uptime())}
-╰──────────●●►
-╭────────●●►
-${commandList}
-╰────────●●►
-➠ *Total Commands: ${mainCommands.length}*
-${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.MAIN_IMG }, 
-                            caption: response6 
-                        }, { quoted: mek });
-                        }
-                        break;
-                    case '7':
-                        {
-                            const groupCommands = commands.filter(c => c.category === 'group' && !c.dontAddCommandList);
-                            const commandList = groupCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response7 = `*◈ GROUP COMMAND LIST ◈*
+*┃* *𝙲𝙾𝙼𝙼𝙰𝙽𝙳𝚂* - ${aiCommands.length || 1} 
+*┗━━━━━━━━━━━━━❥❥❥*
+
+> *Powered by PS MD*`;
+                        await conn.sendMessage(from, { image: { url: bot.AI_IMG || bot.ALIVE_IMG }, caption: response }, { quoted: mek });
+                    } break;
+                    case '4': {
+                        const groupCommands = ['add','kick','promote','del','tagadmins','tagall','hidetag','ginfo','glink','grlink','gnlink','gname','gdec','gdp','grdp','lock','unlock','close','open','addadmin','addmember','join','left','gdisappearing','pin','unpin','gsave','ban','unban','ganti'];
+                        const commandList = groupCommands.map(c => `│ • *${c}*`).join('\n');
+                        const response = `*◈ GROUP COMMAND LIST ◈*
 ╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
 │◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
 │◈ *RUN TIME* - ${runtime(process.uptime())}
@@ -494,17 +431,12 @@ ${commandList}
 ╰────────●●►
 ➠ *Total Commands: ${groupCommands.length}*
 ${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.GROUP_IMG }, 
-                            caption: response7 
-                        }, { quoted: mek });
-                        }
-                        break;
-                    case '8':
-                        {
-                            const funCommands = commands.filter(c => c.category === 'fun' && !c.dontAddCommandList);
-                            const commandList = funCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response8 = `*◈ FUN COMMAND LIST ◈*
+                        await conn.sendMessage(from, { image: { url: bot.GROUP_IMG }, caption: response }, { quoted: mek });
+                    } break;
+                    case '5': {
+                        const toolCommands = ['ping','system','alive','menu','bot'];
+                        const commandList = toolCommands.map(c => `│ • *${c}*`).join('\n');
+                        const response = `*◈ TOOLS COMMAND LIST ◈*
 ╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
 │◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
 │◈ *RUN TIME* - ${runtime(process.uptime())}
@@ -512,19 +444,14 @@ ${bot.COPYRIGHT}`;
 ╭────────●●►
 ${commandList}
 ╰────────●●►
-➠ *Total Commands: ${funCommands.length}*
+➠ *Total Commands: ${toolCommands.length}*
 ${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.FUN_IMG }, 
-                            caption: response8 
-                        }, { quoted: mek });
-                        }
-                        break;
-                    case '9':
-                        {
-                            const toolsCommands = commands.filter(c => c.category === 'tools' && !c.dontAddCommandList);
-                            const commandList = toolsCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response9 = `*◈ TOOLS COMMAND LIST ◈*
+                        await conn.sendMessage(from, { image: { url: bot.TOOLS_IMG }, caption: response }, { quoted: mek });
+                    } break;
+                    case '6': {
+                        const educationCommands = ['paper'];
+                        const commandList = educationCommands.map(c => `│ • *${c}*`).join('\n');
+                        const response = `*◈ EDUCATION COMMAND LIST ◈*
 ╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
 │◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
 │◈ *RUN TIME* - ${runtime(process.uptime())}
@@ -532,19 +459,14 @@ ${bot.COPYRIGHT}`;
 ╭────────●●►
 ${commandList}
 ╰────────●●►
-➠ *Total Commands: ${toolsCommands.length}*
+➠ *Total Commands: ${educationCommands.length}*
 ${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.TOOLS_IMG }, 
-                            caption: response9 
-                        }, { quoted: mek });
-                        }
-                        break;
-                    case '10':
-                        {
-                            const otherCommands = commands.filter(c => c.category === 'other' && !c.dontAddCommandList);
-                            const commandList = otherCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response10 = `*◈ OTHER COMMAND LIST ◈*
+                        await conn.sendMessage(from, { image: { url: bot.PP_IMG || bot.ALIVE_IMG }, caption: response }, { quoted: mek });
+                    } break;
+                    case '7': {
+                        const channelCommands = ['mychannels','setchannel','delchannel','creact'];
+                        const commandList = channelCommands.map(c => `│ • *${c}*`).join('\n');
+                        const response = `*◈ CHANNEL COMMAND LIST ◈*
 ╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
 │◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
 │◈ *RUN TIME* - ${runtime(process.uptime())}
@@ -552,75 +474,12 @@ ${bot.COPYRIGHT}`;
 ╭────────●●►
 ${commandList}
 ╰────────●●►
-➠ *Total Commands: ${otherCommands.length}*
+➠ *Total Commands: ${channelCommands.length}*
 ${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.OTHER_IMG }, 
-                            caption: response10 
-                        }, { quoted: mek });
-                        }
-                        break;
-                        case '11':
-                        {
-                            const movieCommands = commands.filter(c => c.category === 'movie' && !c.dontAddCommandList);
-                            const commandList = movieCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response11 = `*◈ MOVIE COMMAND LIST ◈*
-╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
-│◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
-│◈ *RUN TIME* - ${runtime(process.uptime())}
-╰──────────●●►
-╭────────●●►
-${commandList}
-╰────────●●►
-➠ *Total Commands: ${movieCommands.length}*
-${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.MOVIE_IMG }, 
-                            caption: response11 
-                        }, { quoted: mek });
-                        }
-                        break;
-                        case '12':
-                        {
-                            const newsCommands = commands.filter(c => c.category === 'news' && !c.dontAddCommandList);
-                            const commandList = newsCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response12 = `*◈ NEWS COMMAND LIST ◈*
-╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
-│◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
-│◈ *RUN TIME* - ${runtime(process.uptime())}
-╰──────────●●►
-╭────────●●►
-${commandList}
-╰────────●●►
-➠ *Total Commands: ${newsCommands.length}*
-${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.NEWS_IMG }, 
-                            caption: response12 
-                        }, { quoted: mek });
-                        }
-                        break;
-                        case '13':
-                        {
-                            const ppCommands = commands.filter(c => c.category === 'education' && !c.dontAddCommandList);
-                            const commandList = ppCommands.map(c => `│ • *${c.pattern}*`).join('\n');
-                            const response13 = `*◈ EDUCATION COMMAND LIST ◈*
-╭─「 ᴄᴏᴍᴍᴀɴᴅꜱ ᴘᴀɴᴇʟ」
-│◈ *RAM USAGE* - ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${Math.round(os.totalmem() / 1024 / 1024)}MB
-│◈ *RUN TIME* - ${runtime(process.uptime())}
-╰──────────●●►
-╭────────●●►
-${commandList}
-╰────────●●►
-➠ *Total Commands: ${ppCommands.length}*
-${bot.COPYRIGHT}`;
-                        await conn.sendMessage(from, { 
-                            image: { url: bot.PP_IMG }, 
-                            caption: response13 
-                        }, { quoted: mek });
-                        }
-                        break;
+                        await conn.sendMessage(from, { image: { url: bot.ALIVE_IMG }, caption: response }, { quoted: mek });
+                    } break;
                     default:
+                        reply('⚠️ Invalid option. Please reply with a number between 1 and 7.');
                 }
             }
         });
